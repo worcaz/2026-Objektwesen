@@ -96,19 +96,80 @@ function hashStr(s: string): number {
 }
 
 const DUMMY_OWNERS: string[] = [
-  'Hans Müller, Luzern', 'Petra Rösch, Zug', 'Immobilien AG, Zug',
-  'Familie Berger, Schwyz', 'Kanton Luzern', 'Max Huber, Bern',
+  'Thomas Müller, Bahnhofstrasse 12, 8001 Zürich, ZH',
+  'Béatrice Favre, Rue du Rhône 45, 1204 Genève, GE',
+  'Marco Bernasconi, Via Nassa 7, 6900 Lugano, TI',
+  'Sarah Meier, Hauptgasse 21, 3011 Bern, BE',
+  'Lukas Schmid, Pilatusstrasse 3, 6003 Luzern, LU',
+  'Elena Rossi, Corso San Gottardo 112, 6830 Chiasso, TI',
+  'Jean-Pierre Dubois, Avenue du Théâtre 18, 1005 Lausanne, VD',
+  'Heidi Ammann, Poststrasse 5, 9000 St. Gallen, SG',
+  'Reto Zürcher, Rathausplatz 2, 8400 Winterthur, ZH',
+  'Chantal Lefebvre, Grand-Rue 34, 1700 Fribourg, FR',
+  'Urs Brunner, Hinterdorfstrasse 14, 3920 Zermatt, VS',
+  'Karin Widmer, Marktplatz 8, 4051 Basel, BS',
+  'Fabio Moretti, Via dal Bagn 22, 7500 St. Moritz, GR',
+  'Isabelle Steiner, Chemin des Fleurs 9, 2000 Neuchâtel, NE',
+  'Stefan Gerber, Aareweg 56, 3600 Thun, BE',
+  'Monika Egger, Kirchgasse 10, 6300 Zug, ZG',
+  'Pascal Mercier, Rue de la Gare 27, 1950 Sion, VS',
+  'Daniela Frei, Sonnenweg 31, 8640 Rapperswil-Jona, SG',
+  'Markus Wicki, Ringstrasse 4, 7000 Chur, GR',
+  'Sophie Girard, Quai de la Gruère 15, 2800 Delémont, JU',
 ];
 const DUMMY_GEMEINDEN: Array<{ name: string; bfs: string; gb: string }> = [
-  { name: 'Luzern',        bfs: '1061', gb: 'GB Luzern'        },
-  { name: 'Zug',           bfs: '1711', gb: 'GB Zug'           },
-  { name: 'Kriens',        bfs: '1063', gb: 'GB Kriens'        },
-  { name: 'Emmen',         bfs: '1024', gb: 'GB Emmen'         },
-  { name: 'Horw',          bfs: '1059', gb: 'GB Horw'          },
-  { name: 'Cham',          bfs: '1702', gb: 'GB Cham'          },
+  { name: 'Adligenswil', bfs: '1051', gb: 'GB Adligenswil' },
+  { name: 'Beromünster', bfs: '1081', gb: 'GB Beromünster' },
+  { name: 'Buchrain', bfs: '1052', gb: 'GB Buchrain' },
+  { name: 'Dierikon', bfs: '1053', gb: 'GB Dierikon' },
+  { name: 'Ebikon', bfs: '1054', gb: 'GB Ebikon' },
+  { name: 'Eich', bfs: '1084', gb: 'GB Eich' },
+  { name: 'Emmen', bfs: '1055', gb: 'GB Emmen' },
+  { name: 'Entlebuch', bfs: '1127', gb: 'GB Entlebuch' },
+  { name: 'Escholzmatt-Marbach', bfs: '1150', gb: 'GB Escholzmatt-Marbach' },
+  { name: 'Hochdorf', bfs: '1030', gb: 'GB Hochdorf' },
+  { name: 'Horw', bfs: '1057', gb: 'GB Horw' },
+  { name: 'Kriens', bfs: '1058', gb: 'GB Kriens' },
+  { name: 'Luzern', bfs: '1061', gb: 'GB Luzern' },
+  { name: 'Malters', bfs: '1062', gb: 'GB Malters' },
+  { name: 'Meggen', bfs: '1063', gb: 'GB Meggen' },
+  { name: 'Meierskappel', bfs: '1064', gb: 'GB Meierskappel' },
+  { name: 'Nebikon', bfs: '1137', gb: 'GB Nebikon' },
+  { name: 'Nottwil', bfs: '1092', gb: 'GB Nottwil' },
+  { name: 'Oberkirch', bfs: '1093', gb: 'GB Oberkirch' },
+  { name: 'Pfaffnau', bfs: '1140', gb: 'GB Pfaffnau' },
+  { name: 'Rain', bfs: '1037', gb: 'GB Rain' },
+  { name: 'Reiden', bfs: '1141', gb: 'GB Reiden' },
+  { name: 'Root', bfs: '1065', gb: 'GB Root' },
+  { name: 'Rothenburg', bfs: '1066', gb: 'GB Rothenburg' },
+  { name: 'Ruswil', bfs: '1142', gb: 'GB Ruswil' },
+  { name: 'Schenkon', bfs: '1096', gb: 'GB Schenkon' },
+  { name: 'Schötz', bfs: '1143', gb: 'GB Schötz' },
+  { name: 'Schüpfheim', bfs: '1139', gb: 'GB Schüpfheim' },
+  { name: 'Sempach', bfs: '1097', gb: 'GB Sempach' },
+  { name: 'Sursee', bfs: '1103', gb: 'GB Sursee' },
+  { name: 'Udligenswil', bfs: '1067', gb: 'GB Udligenswil' },
+  { name: 'Vitznau', bfs: '1068', gb: 'GB Vitznau' },
+  { name: 'Wauwil', bfs: '1104', gb: 'GB Wauwil' },
+  { name: 'Weggis', bfs: '1069', gb: 'GB Weggis' },
+  { name: 'Willisau', bfs: '1151', gb: 'GB Willisau' },
+  { name: 'Wolhusen', bfs: '1107', gb: 'GB Wolhusen' },
 ];
 const DUMMY_FLURNAMEN: string[] = [
-  'Im Grund', 'Auf der Matte', 'Unterdorf', 'Zelgli', 'Brühl', 'Hintere Gasse', 'Rainweg',
+  'Allmend',         // Sehr verbreitet in Luzern (z.B. Stadt Luzern, Horw)
+  'Santenberg',      // Bekannt im Seetal/Surersee-Region
+  'Gfäsch',          // Typisch für das Entlebuch
+  'Hostrich',        // Klassischer luzernischer Flurname
+  'Under-Zelg',      // Häufig in ländlichen Gebieten wie Beromünster
+  'Gormund',         // Bekannt durch die Kapelle/Schlacht bei Neudorf
+  'Mülimatte',       // Klassischer Name entlang der Reuss oder Kleinen Emme
+  'Blindei',         // Bekannt aus der Region Wolhusen
+  'Chrotteloch',     // Urtypischer lokaler Flurname
+  'Sonnenberg',      // Bekannt in Kriens/Luzern
+  'Wauwilermoos',    // Markantes Gebiet in der Region Sursee
+  'Gütsch',          // Typisch für Anhöhen (Stadt Luzern)
+  'Rengg',           // Pass/Flurname im Entlebuch
+  'Hinter-Bramberg'  // Historisches Quartier/Flur in Luzern
 ];
 const DUMMY_BODENBEDECKUNG: BodenbedeckungEntry[][] = [
   [
@@ -172,19 +233,41 @@ const DUMMY_ARTEN: string[] = [
   'Miteigentumsanteil an Grundstück',
 ];
 const DUMMY_BUILDINGS: BuildingInfo[] = [
-  { nr: '609.140',  egid: '192557',    bezeichnung: '',       status: 'abgebrochen' },
-  { nr: '609.140a', egid: '191911198', bezeichnung: 'Carport', status: 'bestehend'   },
-  { nr: 'n.v.',     egid: '504085015', bezeichnung: '',       status: 'bestehend'   },
-  { nr: '312.005',  egid: '200341872', bezeichnung: 'Wohnhaus', status: 'bestehend'  },
-  { nr: '415.002',  egid: '300118540', bezeichnung: 'Nebengebäude', status: 'abgebrochen' },
-  { nr: 'n.v.',     egid: '601234567', bezeichnung: 'Garage',  status: 'bestehend'   },
+  { nr: '609.140',   egid: '192557',     bezeichnung: '',             status: 'abgebrochen' },
+  { nr: '609.140a',  egid: '191911198',  bezeichnung: 'Carport',      status: 'bestehend'   },
+  { nr: 'n.v.',      egid: '504085015',  bezeichnung: '',             status: 'bestehend'   },
+  { nr: '312.005',   egid: '200341872',  bezeichnung: 'Wohnhaus',     status: 'bestehend'   },
+  { nr: '415.002',   egid: '300118540',  bezeichnung: 'Nebengebäude', status: 'abgebrochen' },
+  { nr: 'n.v.',      egid: '601234567',  bezeichnung: 'Garage',       status: 'bestehend'   },
+  // Neue Gebäude:
+  { nr: '312.005a',  egid: '200341873',  bezeichnung: 'Gartenhaus',    status: 'bestehend'   },
+  { nr: '120.010',   egid: '100552341',  bezeichnung: 'Mehrfamilienhaus', status: 'projektierte' },
+  { nr: 'n.v.',      egid: '702334110',  bezeichnung: 'Schopf',        status: 'bestehend'   },
+  { nr: '440.001',   egid: '400112233',  bezeichnung: 'Ökonomiegebäude', status: 'bestehend'   },
+  { nr: 'n.v.',      egid: '800456123',  bezeichnung: 'Velounterstand', status: 'geplant'     },
+  { nr: '15.003',    egid: '900223344',  bezeichnung: 'Gewerbehalle',  status: 'bestehend'   },
+  { nr: '609.141',   egid: '192558',     bezeichnung: 'Remise',        status: 'abgebrochen' },
+  { nr: '312.006',   egid: '200341890',  bezeichnung: 'Einfamilienhaus', status: 'im Bau'      },
+  { nr: 'n.v.',      egid: '505050505',  bezeichnung: 'Stützmauer/Unterstand', status: 'bestehend' },
+  { nr: '88.002',    egid: '300445566',  bezeichnung: 'Lagerhaus',     status: 'bestehend'   }
 ];
 const DUMMY_PROJECTS: ProjectInfo[] = [
   { dossierNr: '2025-0660', bezeichnung: 'Umnutzung Gebäude Nr. 134a zu Abstell- und Lagerfläche für Malerbetrieb (nachträglich) und Einbau Spaltanlage in Gebäude Nr. 134d', status: 'Leitentscheid' },
-  { dossierNr: '2022-4426', bezeichnung: 'Neubau einer Niederspannungsrohranlage und Abbruch der bestehenden Freileitung',                                                         status: 'Abgeschlossen'  },
-  { dossierNr: '2017-1977', bezeichnung: 'Anbau Garage + Holzschnitzellager',                                                                                                       status: 'Abgeschlossen'  },
-  { dossierNr: '2026-0572', bezeichnung: 'Einbau Wohnung',                                                                                                                          status: 'Leitentscheid'  },
-  { dossierNr: '2024-0637', bezeichnung: 'Fassadensanierung und Anbau Balkone',                                                                                                     status: 'Abgeschlossen'  },
+  { dossierNr: '2022-4426', bezeichnung: 'Neubau einer Niederspannungsrohranlage und Abbruch der bestehenden Freileitung', status: 'Abgeschlossen' },
+  { dossierNr: '2017-1977', bezeichnung: 'Anbau Garage + Holzschnitzellager', status: 'Abgeschlossen' },
+  { dossierNr: '2026-0572', bezeichnung: 'Einbau Wohnung', status: 'Leitentscheid' },
+  { dossierNr: '2024-0637', bezeichnung: 'Fassadensanierung und Anbau Balkone', status: 'Abgeschlossen' },
+  // Neue Projekte:
+  { dossierNr: '2026-0812', bezeichnung: 'Installation einer Photovoltaikanlage auf der Südwestdachfläche und Ersatz der Ölheizung durch eine Luft-Wasser-Wärmepumpe', status: 'In Prüfung' },
+  { dossierNr: '2025-1104', bezeichnung: 'Neubau Einfamilienhaus mit integrierter Doppelgarage und Umgebungsgestaltung', status: 'Leitentscheid' },
+  { dossierNr: '2024-0945', bezeichnung: 'Erstellung einer Stützmauer entlang der Parzellengrenze Nr. 452 und Terrainanpassung', status: 'Abgeschlossen' },
+  { dossierNr: '2026-0123', bezeichnung: 'Abbruch des bestehenden Ökonomiegebäudes und Neubau eines Mehrfamilienhauses mit 6 Wohneinheiten', status: 'Auflage' },
+  { dossierNr: '2025-0789', bezeichnung: 'Aussenwärmedämmung und Fenstersanierung bei Wohnhaus Nr. 22b', status: 'Leitentscheid' },
+  { dossierNr: '2023-3310', bezeichnung: 'Erstellung einer ungedeckten Parkplatzfläche für 4 Fahrzeuge', status: 'Abgeschlossen' },
+  { dossierNr: '2026-0441', bezeichnung: 'Umnutzung Ladenlokal Erdgeschoss zu Büroflächen und Einbau einer rollstuhlgängigen Toilettenanlage', status: 'In Prüfung' },
+  { dossierNr: '2025-1256', bezeichnung: 'Ersatz der bestehenden Holzheizung durch eine Pelletheizung inkl. Kaminanlage an der Nordfassade', status: 'Leitentscheid' },
+  { dossierNr: '2022-5501', bezeichnung: 'Sanierung und Erweiterung der bestehenden Jauchegrube auf Parzelle Nr. 118', status: 'Abgeschlossen' },
+  { dossierNr: '2026-0902', bezeichnung: 'Erstellung eines Wintergartens (unbeheizt) auf der Westseite des bestehenden Gebäudes Nr. 88', status: 'Auflage' }
 ];
 
 const DUMMY_KATASTERWERTE = [
