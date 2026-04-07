@@ -80,6 +80,13 @@ interface ObjectInfo {
   flaecheGrundbuch:      string;
   gebaeude:          BuildingInfo[];
   bauprojekte:       ProjectInfo[];
+  // Grundstück-Sektion
+  katasterwert:      string;
+  dienstbarkeiten:   string[];
+  anmerkungen:       string[];
+  grundpfandrechte:  string[];
+  erwerbsarten:      string[];
+  offeneGeschaefte:  string[];
 }
 
 function hashStr(s: string): number {
@@ -180,6 +187,50 @@ const DUMMY_PROJECTS: ProjectInfo[] = [
   { dossierNr: '2024-0637', bezeichnung: 'Fassadensanierung und Anbau Balkone',                                                                                                     status: 'Abgeschlossen'  },
 ];
 
+const DUMMY_KATASTERWERTE = [
+  "CHF 850'000", "CHF 1'200'000", "CHF 430'000", "CHF 2'100'000", "CHF 680'000", "CHF 3'400'000",
+];
+const DUMMY_DIENSTBARKEITEN: string[][] = [
+  ['Wegrecht zugunsten Parz. 412', 'Leitungsrecht EW Luzern'],
+  ['Baurecht Nr. 1024 (BRB 2005)', 'Näherbaurecht'],
+  [],
+  ['Fusswegrecht zugunsten Gemeinde'],
+  ['Leitungsrecht Swisscom', 'Grenzbaurecht Parz. 881', 'Wegrecht'],
+  [],
+];
+const DUMMY_ANMERKUNGEN: string[][] = [
+  ['Altlastenverdachtsstandort (KbS-Nr. 1234)'],
+  [],
+  ['Denkmalschutzobjekt Kat. B', 'Innerhalb Gefahrenzone Wasser'],
+  [],
+  ['Im Bereich Lärmschutzzone'],
+  ['Perimeter Gebäudeversicherung angepasst'],
+];
+const DUMMY_GRUNDPFANDRECHTE: string[][] = [
+  ["Schuldbrief CHF 500'000 (Luzerner Kantonalbank)"],
+  ["Schuldbrief CHF 780'000 (UBS AG)", "Schuldbrief CHF 200'000 (Raiffeisen)"],
+  [],
+  ["Inhaberschuldbrief CHF 1'000'000"],
+  [],
+  ["Schuldbrief CHF 300'000 (ZKB)"],
+];
+const DUMMY_ERWERBSARTEN: string[][] = [
+  ['Hans Muster: Kauf 01.01.2026', 'Peter Müller: Erbvertrag 15.10.2001'],
+  ['Sandra Wolf: Kauf 14.03.2021'],
+  ['Anna Keller: Schenkung 22.06.2015', 'Anna Keller: Erbteilung 22.06.2015'],
+  ['Peter Bauer: Kauf 08.11.2003'],
+  ['Maria Meier: Zwangsversteigerung 03.05.2019'],
+  ['Hans Müller: Kauf 17.09.2012', 'Vreni Müller: Kauf 04.04.2001'],
+];
+const DUMMY_OFFENE_GESCHAEFTE: string[][] = [
+  ['Eigentumsübertragung in Bearbeitung'],
+  [],
+  ['Servitutsänderung pendent'],
+  ['Mutation (Grenzbereinigung) pendent', 'Planauflage läuft'],
+  [],
+  ['Pfandentlassung in Bearbeitung'],
+];
+
 function buildDummyInfo(seed: string, nummer?: string, egrid?: string): ObjectInfo {
   const h = hashStr(seed);
   const gemeinde = DUMMY_GEMEINDEN[h % DUMMY_GEMEINDEN.length];
@@ -198,6 +249,12 @@ function buildDummyInfo(seed: string, nummer?: string, egrid?: string): ObjectIn
     flaecheGrundbuch:      `${flaeche.toLocaleString('de-CH')} m²`,
     gebaeude:          DUMMY_BUILDINGS.slice(0, 1 + (h % 3)),
     bauprojekte:       DUMMY_PROJECTS.slice(0, 1 + (h % DUMMY_PROJECTS.length)),
+    katasterwert:      DUMMY_KATASTERWERTE[h % DUMMY_KATASTERWERTE.length],
+    dienstbarkeiten:   DUMMY_DIENSTBARKEITEN[h % DUMMY_DIENSTBARKEITEN.length],
+    anmerkungen:       DUMMY_ANMERKUNGEN[h % DUMMY_ANMERKUNGEN.length],
+    grundpfandrechte:  DUMMY_GRUNDPFANDRECHTE[h % DUMMY_GRUNDPFANDRECHTE.length],
+    erwerbsarten:      DUMMY_ERWERBSARTEN[h % DUMMY_ERWERBSARTEN.length],
+    offeneGeschaefte:  DUMMY_OFFENE_GESCHAEFTE[h % DUMMY_OFFENE_GESCHAEFTE.length],
   };
 }
 
@@ -290,6 +347,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
         {title}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{children}</div>
+      <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '10px 0 0 0' }} />
     </div>
   );
 }
@@ -352,7 +410,7 @@ function CollapsibleBauprojekte({ entries }: { entries: ProjectInfo[] }) {
       {open && (
         <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 3 }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
-            <span>Dossier</span>
+            <span></span>
             <span>Bezeichnung</span>
             <span>Status</span>
           </div>
@@ -433,6 +491,36 @@ function CollapsibleBodenbedeckung({ entries }: { entries: BodenbedeckungEntry[]
   );
 }
 
+function CollapsibleStringList({ label, entries }: { label: string; entries: string[] }) {
+  const [open, setOpen] = useState(false);
+  if (entries.length === 0) {
+    return (
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
+        <span style={{ color: '#666' }}>{label}</span>
+        <span style={{ color: '#bbb', fontSize: 12 }}>—</span>
+      </div>
+    );
+  }
+  return (
+    <div style={{ fontSize: 13 }}>
+      <div
+        onClick={() => setOpen(o => !o)}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+      >
+        <span style={{ color: '#666' }}>{label}</span>
+        <span style={{ color: '#3388ff', fontWeight: 600, fontSize: 12 }}>{open ? '▲ zuklappen' : `▼ ${entries.length} Einträge`}</span>
+      </div>
+      {open && (
+        <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 4 }}>
+          {entries.map((e, i) => (
+            <span key={i} style={{ fontSize: 12, color: '#1a1a1a' }}>{e}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => void }) {
   return (
     <div style={{
@@ -462,12 +550,25 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
           <FieldRow label="Flurnamen"                     value={info.flurname} />
           <CollapsibleBodenbedeckung entries={info.bodenbedeckung} />
           <FieldRow label="Fläche (grundbuchlich)"        value={info.flaecheGrundbuch} />
-          <FieldRow label="Eigentümer"                   value={info.eigentuemer} />
+          <CollapsibleZonenplan entries={info.grundnutzungZonenplan} />
         </Section>
 
-        <CollapsibleZonenplan entries={info.grundnutzungZonenplan} />
-        <CollapsibleGebaeude entries={info.gebaeude} />
-        <CollapsibleBauprojekte entries={info.bauprojekte} />
+        <Section title="Grundstück">
+          <FieldRow label="Eigentümer"                    value={info.eigentuemer} />
+          <FieldRow label="Katasterwert"                  value={info.katasterwert} />
+          <FieldRow label="Dienstbarkeiten / Grundlasten" value={info.dienstbarkeiten.length ? info.dienstbarkeiten.join(', ') : '—'} />
+          <FieldRow label="Anmerkungen"                   value={info.anmerkungen.length ? info.anmerkungen.join(', ') : '—'} />
+          <FieldRow label="Grundpfandrechte"              value={info.grundpfandrechte.length ? info.grundpfandrechte.join(', ') : '—'} />
+          <FieldRow label="Erwerbsarten"                  value={info.erwerbsarten.length ? info.erwerbsarten.join(', ') : '—'} />
+          <FieldRow label="Offene Geschäfte"              value={info.offeneGeschaefte.length ? info.offeneGeschaefte.join(', ') : '—'} />
+        </Section>
+
+        <Section title="Gebäude">
+          <CollapsibleGebaeude entries={info.gebaeude} />
+        </Section>
+        <Section title="Bauprojekte">
+          <CollapsibleBauprojekte entries={info.bauprojekte} />
+        </Section>
       </div>
     </div>
   );

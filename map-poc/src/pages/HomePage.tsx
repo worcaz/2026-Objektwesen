@@ -29,20 +29,6 @@ const MOCKUPS: MockupEntry[] = [
     icon: '🗺️',
     status: 'wip',
   },
-  {
-    path: '/list',
-    title: 'Parzellenliste',
-    description: 'Tabellarische Übersicht aller Grundstücke mit Filter- und Sortierfunktion.',
-    icon: '📋',
-    status: 'wip',
-  },
-  {
-    path: '/dashboard',
-    title: 'Dashboard',
-    description: 'Kennzahlen und Statistiken zu Flächen, Eigentümern und Nutzungsarten.',
-    icon: '📊',
-    status: 'planned',
-  },
 ];
 
 const STATUS_BADGE: Record<MockupEntry['status'], { label: string; bg: string; color: string }> = {
@@ -121,7 +107,7 @@ export default function HomePage() {
     <div style={{
       minHeight: '100vh',
       background: '#f5f6f8',
-      fontFamily: 'system-ui, sans-serif',
+
       boxSizing: 'border-box',
     }}>
       <Header />
