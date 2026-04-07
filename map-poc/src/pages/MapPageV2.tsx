@@ -233,23 +233,38 @@ const DUMMY_ARTEN: string[] = [
   'Miteigentumsanteil an Grundstück',
 ];
 const DUMMY_BUILDINGS: BuildingInfo[] = [
-  { nr: '609.140',   egid: '192557',     bezeichnung: '',             status: 'abgebrochen' },
-  { nr: '609.140a',  egid: '191911198',  bezeichnung: 'Carport',      status: 'bestehend'   },
-  { nr: 'n.v.',      egid: '504085015',  bezeichnung: '',             status: 'bestehend'   },
-  { nr: '312.005',   egid: '200341872',  bezeichnung: 'Wohnhaus',     status: 'bestehend'   },
-  { nr: '415.002',   egid: '300118540',  bezeichnung: 'Nebengebäude', status: 'abgebrochen' },
-  { nr: 'n.v.',      egid: '601234567',  bezeichnung: 'Garage',       status: 'bestehend'   },
-  // Neue Gebäude:
-  { nr: '312.005a',  egid: '200341873',  bezeichnung: 'Gartenhaus',    status: 'bestehend'   },
-  { nr: '120.010',   egid: '100552341',  bezeichnung: 'Mehrfamilienhaus', status: 'projektierte' },
-  { nr: 'n.v.',      egid: '702334110',  bezeichnung: 'Schopf',        status: 'bestehend'   },
-  { nr: '440.001',   egid: '400112233',  bezeichnung: 'Ökonomiegebäude', status: 'bestehend'   },
-  { nr: 'n.v.',      egid: '800456123',  bezeichnung: 'Velounterstand', status: 'geplant'     },
-  { nr: '15.003',    egid: '900223344',  bezeichnung: 'Gewerbehalle',  status: 'bestehend'   },
-  { nr: '609.141',   egid: '192558',     bezeichnung: 'Remise',        status: 'abgebrochen' },
-  { nr: '312.006',   egid: '200341890',  bezeichnung: 'Einfamilienhaus', status: 'im Bau'      },
-  { nr: 'n.v.',      egid: '505050505',  bezeichnung: 'Stützmauer/Unterstand', status: 'bestehend' },
-  { nr: '88.002',    egid: '300445566',  bezeichnung: 'Lagerhaus',     status: 'bestehend'   }
+  { nr: '609.140',    egid: '192557',     bezeichnung: 'Velounterstand',            status: 'abgebrochen' },
+  { nr: '609.140a',   egid: '191911198',  bezeichnung: 'Carport',                   status: 'bestehend'   },
+  { nr: 'n.v.',       egid: '504085015',  bezeichnung: 'Stall',                     status: 'bestehend'   },
+  { nr: '312.005',    egid: '200341872',  bezeichnung: 'Wohnhaus',                  status: 'bestehend'   },
+  { nr: '415.002',    egid: '300118540',  bezeichnung: 'Nebengebäude',              status: 'abgebrochen' },
+  { nr: 'n.v.',       egid: '601234567',  bezeichnung: 'Garage',                    status: 'bestehend'   },
+  { nr: '312.005a',   egid: '200341873',  bezeichnung: 'Gartenhaus',                status: 'bestehend'   },
+  { nr: '120.010',    egid: '100552341',  bezeichnung: 'Mehrfamilienhaus',          status: 'projektierte' },
+  { nr: 'n.v.',       egid: '702334110',  bezeichnung: 'Schopf',                    status: 'bestehend'   },
+  { nr: '440.001',    egid: '400112233',  bezeichnung: 'Ökonomiegebäude',           status: 'bestehend'   },
+  { nr: 'n.v.',       egid: '800456123',  bezeichnung: 'Velounterstand',            status: 'geplant'     },
+  { nr: '15.003',     egid: '900223344',  bezeichnung: 'Gewerbehalle',              status: 'bestehend'   },
+  { nr: '609.141',    egid: '192558',     bezeichnung: 'Remise',                    status: 'abgebrochen' },
+  { nr: '312.006',    egid: '200341890',  bezeichnung: 'Einfamilienhaus',           status: 'im Bau'      },
+  { nr: 'n.v.',       egid: '505050505',  bezeichnung: 'Stützmauer/Unterstand',     status: 'bestehend'   },
+  { nr: '88.002',     egid: '300445566',  bezeichnung: 'Lagerhaus',                 status: 'bestehend'   },
+  // Weitere Ergänzungen
+  { nr: '312.005b',   egid: '200341874',  bezeichnung: 'Garage',                    status: 'bestehend'   },
+  { nr: 'n.v.',       egid: '910223355',  bezeichnung: 'Schwimmbad / Pool',         status: 'bestehend'   },
+  { nr: '120.011',    egid: '100552342',  bezeichnung: 'Mehrfamilienhaus',          status: 'projektierte' },
+  { nr: '120.012',    egid: '100552343',  bezeichnung: 'Einstellhalle',             status: 'projektierte' },
+  { nr: '55.001',     egid: '440556112',  bezeichnung: 'Wohnhaus',                  status: 'bestehend'   },
+  { nr: '55.001a',    egid: '440556113',  bezeichnung: 'Schopf',                    status: 'bestehend'   },
+  { nr: 'n.v.',       egid: '101122334',  bezeichnung: 'Luft-Wasser-Wärmepumpe',     status: 'bestehend'   },
+  { nr: '710.001',    egid: '880112233',  bezeichnung: 'Werkstatt',                 status: 'bestehend'   },
+  { nr: '710.001a',   egid: '880112234',  bezeichnung: 'Anbau Werkstatt',           status: 'im Bau'      },
+  { nr: '221.040',    egid: '770665544',  bezeichnung: 'Einfamilienhaus',           status: 'bestehend'   },
+  { nr: '221.040a',   egid: '770665545',  bezeichnung: 'Carport',                   status: 'bestehend'   },
+  { nr: 'n.v.',       egid: '123123123',  bezeichnung: 'Gartenhaus',                status: 'abgebrochen' },
+  { nr: '900.005',    egid: '990887766',  bezeichnung: 'Trafostation',              status: 'bestehend'   },
+  { nr: 'n.v.',       egid: '556677889',  bezeichnung: 'Velounterstand',            status: 'bestehend'   },
+  { nr: '102.001',    egid: '110220330',  bezeichnung: 'Wohn- und Geschäftshaus',    status: 'bestehend'   }
 ];
 const DUMMY_PROJECTS: ProjectInfo[] = [
   { dossierNr: '2025-0660', bezeichnung: 'Umnutzung Gebäude Nr. 134a zu Abstell- und Lagerfläche für Malerbetrieb (nachträglich) und Einbau Spaltanlage in Gebäude Nr. 134d', status: 'Leitentscheid' },
@@ -331,7 +346,7 @@ function buildDummyInfo(seed: string, nummer?: string, egrid?: string): ObjectIn
     grundnutzungZonenplan: DUMMY_GRUNDNUTZUNG[h % DUMMY_GRUNDNUTZUNG.length],
     flaecheGrundbuch:      `${flaeche.toLocaleString('de-CH')} m²`,
     gebaeude:          DUMMY_BUILDINGS.slice(0, 1 + (h % 3)),
-    bauprojekte:       DUMMY_PROJECTS.slice(0, 1 + (h % DUMMY_PROJECTS.length)),
+    bauprojekte:       DUMMY_PROJECTS.slice(0, 1 + (h % Math.min(DUMMY_PROJECTS.length, 5))),
     katasterwert:      DUMMY_KATASTERWERTE[h % DUMMY_KATASTERWERTE.length],
     dienstbarkeiten:   DUMMY_DIENSTBARKEITEN[h % DUMMY_DIENSTBARKEITEN.length],
     anmerkungen:       DUMMY_ANMERKUNGEN[h % DUMMY_ANMERKUNGEN.length],
@@ -492,18 +507,18 @@ function CollapsibleBauprojekte({ entries }: { entries: ProjectInfo[] }) {
       </div>
       {open && (
         <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
-            <span></span>
+          <div style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
+            <span>Dossier</span>
             <span>Bezeichnung</span>
-            <span>Status</span>
+            <span style={{ textAlign: 'right' }}>Status</span>
           </div>
           {entries.map((p, i) => {
             const c = STATUS_BADGE[p.status] ?? { bg: '#eee', color: '#555' };
             return (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: 'auto 1fr auto', gap: '0 8px', fontSize: 12, alignItems: 'baseline', padding: '2px 0' }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 12, alignItems: 'baseline', padding: '2px 0' }}>
                 <span style={{ color: '#555', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{p.dossierNr}</span>
                 <span style={{ color: '#1a1a1a' }}>{p.bezeichnung}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap' }}>{p.status}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap', justifySelf: 'end' }}>{p.status}</span>
               </div>
             );
           })}
@@ -526,20 +541,22 @@ function CollapsibleGebaeude({ entries }: { entries: BuildingInfo[] }) {
       </div>
       {open && (
         <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto auto 1fr auto', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '72px 110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
             <span>Nr.</span>
             <span>EGID</span>
             <span>Bezeichnung</span>
-            <span>Status</span>
+            <span style={{ textAlign: 'right' }}>Status</span>
           </div>
           {entries.map((g, i) => {
             const c = STATUS_BADGE[g.status] ?? { bg: '#eee', color: '#555' };
             return (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: 'auto auto 1fr auto', gap: '0 8px', fontSize: 12, alignItems: 'center', padding: '2px 0' }}>
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '72px 110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 12, alignItems: 'baseline', padding: '2px 0' }}>
                 <span style={{ color: '#555', whiteSpace: 'nowrap' }}>{g.nr}</span>
-                <span style={{ color: '#888', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{g.egid}</span>
-                <span style={{ color: '#1a1a1a' }}>{g.bezeichnung}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap' }}>{g.status}</span>
+                <span style={{ color: '#555', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{g.egid}</span>
+                <span style={{ color: '#555' }}>{g.bezeichnung || '—'}</span>
+                <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap', justifySelf: 'end' }}>
+                  {g.status}
+                </span>
               </div>
             );
           })}
