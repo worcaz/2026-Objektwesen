@@ -1,20 +1,194 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LuHouse, LuCircleUserRound, LuLogOut, LuUserCheck } from 'react-icons/lu';
+import { LuHouse, LuCircleUserRound, LuLayers3, LuLogOut } from 'react-icons/lu';
 
 const HEADER_BG = 'rgba(0, 159, 227, 0.9)';
-const STORAGE_KEY = 'objektwesen-demo-user';
+const AGOV_ACCESS_APP_ICON_URL = '/icons_agov.svg';
+export const AUTH_STORAGE_KEY = 'objektwesen-demo-user';
+export const AUTH_EVENT_NAME = 'objektwesen-auth-changed';
 
 const NAV_ITEMS = [
   { path: '/', label: 'Startseite', icon: <LuHouse size={15} /> },
-  { path: '/map', label: 'Parzellenviewer v1', icon: '🗺️' },
-  { path: '/mapv2', label: 'Objektwesen v2 Mockup', icon: '🗺️' },
-  { path: '/list', label: 'Parzellenliste', icon: '📋' },
+  { path: '/mapv2', label: 'Objektwesen v2 Mockup', icon: <LuLayers3 size={15} /> },
 ];
+
+function DummyQrCode({ size = 196 }: { size?: number }) {
+  const gridSize = 33;
+  const cell = 3;
+  const padding = 9;
+  const viewSize = gridSize * cell + padding * 2;
+  const finderStarts = [
+    [0, 0],
+    [gridSize - 7, 0],
+    [0, gridSize - 7],
+  ] as const;
+
+  const isInsideFinder = (x: number, y: number) =>
+    finderStarts.some(([fx, fy]) => x >= fx && x < fx + 7 && y >= fy && y < fy + 7);
+
+  const filled = new Set<string>();
+  const addCell = (x: number, y: number) => filled.add(`${x}-${y}`);
+
+  for (let y = 0; y < gridSize; y++) {
+    for (let x = 0; x < gridSize; x++) {
+      if (isInsideFinder(x, y)) continue;
+
+      if (x === 6 || y === 6) {
+        if ((x + y) % 2 === 0) addCell(x, y);
+        continue;
+      }
+
+      const inAlignmentZone = x >= 22 && x <= 26 && y >= 22 && y <= 26;
+      if (inAlignmentZone) {
+        const dx = Math.abs(x - 24);
+        const dy = Math.abs(y - 24);
+        if (Math.max(dx, dy) === 2 || (dx === 0 && dy === 0)) addCell(x, y);
+        continue;
+      }
+
+      const densePattern = ((x * 17 + y * 11 + (x ^ y) + x * y) % 7) < 3;
+      const accentPattern = ((x + 2) * (y + 3)) % 11 === 0 || (x * 5 + y * 3) % 13 === 0;
+      if (densePattern || accentPattern) addCell(x, y);
+    }
+  }
+
+  const renderFinder = (x: number, y: number) => (
+    <g key={`finder-${x}-${y}`}>
+      <rect x={padding + x * cell} y={padding + y * cell} width={7 * cell} height={7 * cell} fill="#050505" />
+      <rect x={padding + (x + 1) * cell} y={padding + (y + 1) * cell} width={5 * cell} height={5 * cell} fill="#fff" />
+      <rect x={padding + (x + 2) * cell} y={padding + (y + 2) * cell} width={3 * cell} height={3 * cell} fill="#050505" />
+    </g>
+  );
+
+  return (
+    <svg viewBox={`0 0 ${viewSize} ${viewSize}`} width={size} height={size} aria-hidden="true" style={{ display: 'block' }} shapeRendering="crispEdges">
+      <rect x="0" y="0" width={viewSize} height={viewSize} fill="#fff" />
+      {finderStarts.map(([x, y]) => renderFinder(x, y))}
+      {Array.from(filled).map((key) => {
+        const [x, y] = key.split('-').map(Number);
+        return <rect key={key} x={padding + x * cell} y={padding + y * cell} width={cell} height={cell} fill="#050505" />;
+      })}
+    </svg>
+  );
+}
+
+function AgovAccessCardIcon() {
+  return (
+    <img
+      src={AGOV_ACCESS_APP_ICON_URL}
+      alt=""
+      aria-hidden="true"
+      style={{ display: 'block', width: 64, height: 64 }}
+    />
+  );
+}
+
+function RegistrationPanel() {
+  return (
+    <div
+      style={{
+        border: '1px solid #e5e7eb',
+        borderRadius: 12,
+        background: '#fbfcfd',
+        padding: '16px 18px',
+        display: 'grid',
+        gap: 12,
+        alignContent: 'start',
+      }}
+    >
+      <div>
+        <div style={{ fontSize: 12, fontWeight: 700, color: 'rgba(0,159,227,1)', textTransform: 'uppercase', letterSpacing: '0.04em', marginBottom: 6 }}>
+          Registrierung
+        </div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1a1a', marginBottom: 4 }}>
+          Haben Sie noch kein AGOV-Konto?
+        </div>
+        <p style={{ margin: 0, fontSize: 13, color: '#5f6b7a', lineHeight: 1.5 }}>
+          Registrieren Sie sich für diesen Demo-Prozess mit einem Dummy-Button ohne weitere Funktion.
+        </p>
+      </div>
+
+      <button
+        type="button"
+        style={{
+          border: '1px solid rgba(0, 159, 227, 0.22)',
+          borderRadius: 10,
+          background: '#eef8fd',
+          color: 'rgba(0,159,227,1)',
+          fontWeight: 700,
+          padding: '11px 14px',
+          cursor: 'pointer',
+        }}
+      >
+        Registrieren
+      </button>
+    </div>
+  );
+}
+
+type BotAvatarVariant = {
+  shell: string;
+  panel: string;
+  accent: string;
+  eye: 'dots' | 'visor' | 'cross';
+  mouth: 'line' | 'grille' | 'smile';
+};
+
+const BOT_AVATAR_VARIANTS: BotAvatarVariant[] = [
+  { shell: '#FFB300', panel: '#FFE082', accent: '#2A3544', eye: 'dots', mouth: 'grille' },
+  { shell: '#E53935', panel: '#FF8A80', accent: '#1F2A37', eye: 'visor', mouth: 'line' },
+  { shell: '#D81B60', panel: '#F48FB1', accent: '#2A223D', eye: 'cross', mouth: 'line' },
+  { shell: '#C0CA33', panel: '#E6EE9C', accent: '#32411B', eye: 'dots', mouth: 'smile' },
+  { shell: '#5E35B1', panel: '#B39DDB', accent: '#1F1B4B', eye: 'visor', mouth: 'grille' },
+];
+
+function hashString(value: string): number {
+  let hash = 0;
+  for (let i = 0; i < value.length; i++) {
+    hash = (Math.imul(31, hash) + value.charCodeAt(i)) | 0;
+  }
+  return Math.abs(hash);
+}
+
+function BotAvatar({ seed, size = 22 }: { seed: string; size?: number }) {
+  const variant = BOT_AVATAR_VARIANTS[hashString(seed) % BOT_AVATAR_VARIANTS.length];
+
+  return (
+    <svg viewBox="0 0 40 40" width={size} height={size} aria-hidden="true" style={{ display: 'block', flexShrink: 0 }}>
+      <circle cx="20" cy="20" r="20" fill="#ffffff" opacity="0.12" />
+      <path d="M20 5.5v5.5" stroke={variant.accent} strokeWidth="2" strokeLinecap="round" />
+      <circle cx="20" cy="4.5" r="2.5" fill={variant.panel} stroke={variant.accent} strokeWidth="1" />
+      <rect x="8" y="10" width="24" height="21" rx="8" fill={variant.shell} stroke={variant.accent} strokeWidth="1.5" />
+      <rect x="11" y="13" width="18" height="10" rx="5" fill={variant.accent} opacity="0.92" />
+      {variant.eye === 'dots' && (
+        <>
+          <circle cx="17" cy="18" r="2" fill="#F8FAFC" />
+          <circle cx="23" cy="18" r="2" fill="#F8FAFC" />
+        </>
+      )}
+      {variant.eye === 'visor' && <rect x="15" y="16.5" width="10" height="3" rx="1.5" fill="#7DD3FC" />}
+      {variant.eye === 'cross' && (
+        <>
+          <path d="M15.5 16l3 3M18.5 16l-3 3" stroke="#F8FAFC" strokeWidth="1.6" strokeLinecap="round" />
+          <path d="M21.5 16l3 3M24.5 16l-3 3" stroke="#F8FAFC" strokeWidth="1.6" strokeLinecap="round" />
+        </>
+      )}
+      {variant.mouth === 'line' && <rect x="15" y="25" width="10" height="2.4" rx="1.2" fill={variant.accent} opacity="0.75" />}
+      {variant.mouth === 'smile' && <path d="M15.5 24.5c1.2 2 7.8 2 9 0" stroke={variant.accent} strokeWidth="1.8" strokeLinecap="round" />}
+      {variant.mouth === 'grille' && (
+        <>
+          <rect x="14" y="24" width="12" height="4" rx="1.5" fill="#fff" opacity="0.85" />
+          <path d="M17 24v4M20 24v4M23 24v4" stroke={variant.accent} strokeWidth="1" opacity="0.55" />
+        </>
+      )}
+    </svg>
+  );
+}
 
 export default function Header() {
   const [open, setOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [authUser, setAuthUser] = useState<string | null>(null);
@@ -24,7 +198,7 @@ export default function Header() {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
-    const savedUser = window.localStorage.getItem(STORAGE_KEY);
+    const savedUser = window.localStorage.getItem(AUTH_STORAGE_KEY);
     if (savedUser) {
       setAuthUser(savedUser);
       setUsername(savedUser);
@@ -32,23 +206,38 @@ export default function Header() {
   }, []);
 
   useEffect(() => {
-    if (!loginOpen || typeof window === 'undefined') return;
+    if ((!loginOpen && !accountMenuOpen) || typeof window === 'undefined') return;
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setLoginOpen(false);
+      if (event.key === 'Escape') {
+        setLoginOpen(false);
+        setAccountMenuOpen(false);
+      }
     };
 
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [loginOpen]);
+  }, [loginOpen, accountMenuOpen]);
 
   const openLoginModal = () => {
     setLoginOpen(true);
     setOpen(false);
+    setAccountMenuOpen(false);
     setError('');
     setPassword('');
 
     if (authUser) setUsername(authUser);
+  };
+
+  const handleAccountButtonClick = () => {
+    setOpen(false);
+
+    if (authUser) {
+      setAccountMenuOpen((current) => !current);
+      return;
+    }
+
+    openLoginModal();
   };
 
   const handleLogin = (event: FormEvent<HTMLFormElement>) => {
@@ -61,18 +250,21 @@ export default function Header() {
     }
 
     if (typeof window !== 'undefined') {
-      window.localStorage.setItem(STORAGE_KEY, cleanUser);
+      window.localStorage.setItem(AUTH_STORAGE_KEY, cleanUser);
+      window.dispatchEvent(new CustomEvent(AUTH_EVENT_NAME, { detail: cleanUser }));
     }
 
     setAuthUser(cleanUser);
     setError('');
     setPassword('');
     setLoginOpen(false);
+    setAccountMenuOpen(false);
   };
 
   const handleLogout = () => {
     if (typeof window !== 'undefined') {
-      window.localStorage.removeItem(STORAGE_KEY);
+      window.localStorage.removeItem(AUTH_STORAGE_KEY);
+      window.dispatchEvent(new CustomEvent(AUTH_EVENT_NAME, { detail: null }));
     }
 
     setAuthUser(null);
@@ -80,6 +272,7 @@ export default function Header() {
     setPassword('');
     setError('');
     setLoginOpen(false);
+    setAccountMenuOpen(false);
   };
 
   return (
@@ -100,7 +293,10 @@ export default function Header() {
       >
         <button
           type="button"
-          onClick={() => setOpen((o) => !o)}
+          onClick={() => {
+            setOpen((o) => !o);
+            setAccountMenuOpen(false);
+          }}
           aria-label={open ? 'Menü schließen' : 'Menü öffnen'}
           style={{
             background: 'none',
@@ -130,39 +326,92 @@ export default function Header() {
           </svg>
         </Link>
 
-        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 10 }}>
-          {authUser && (
-            <span style={{ color: '#fff', fontSize: 13, fontWeight: 600 }}>
-              {authUser}
-            </span>
-          )}
+        <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center' }}>
+          <div style={{ position: 'relative' }}>
+            <button
+              type="button"
+              onClick={handleAccountButtonClick}
+              aria-label={authUser ? 'Benutzermenü öffnen' : 'Anmelden öffnen'}
+              aria-expanded={authUser ? accountMenuOpen : undefined}
+              title={authUser ? 'Konto' : 'Anmelden'}
+              style={{
+                border: 'none',
+                background: authUser ? '#fff' : 'rgb(255, 255, 255)',
+                color: '#0a2b72',
+                borderRadius: authUser ? 999 : 5,
+                padding: authUser ? 1 : '3px 20px',
+                width: authUser ? 28 : 'auto',
+                height: authUser ? 28 : 'auto',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                fontWeight: 700,
+              }}
+            >
+              {authUser ? (
+                <BotAvatar seed={authUser} size={26} />
+              ) : (
+                <span style={{ fontSize: 12, fontWeight: 500 }}>Anmelden</span>
+              )}
+            </button>
 
-          <button
-            type="button"
-            onClick={openLoginModal}
-            aria-label={authUser ? 'Benutzerkonto öffnen' : 'Login öffnen'}
-            title={authUser ? 'Konto' : 'Login'}
-            style={{
-              border: '1px solid rgba(255,255,255,0.25)',
-              background: 'rgba(255,255,255,0.12)',
-              color: '#fff',
-              borderRadius: 999,
-              padding: '5px 10px',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 8,
-            }}
-          >
-            {authUser ? <LuUserCheck size={18} /> : <LuCircleUserRound size={18} />}
-            <span style={{ fontSize: 12, fontWeight: 700 }}>
-              {authUser ? 'Konto' : 'Login'}
-            </span>
-          </button>
+            {authUser && accountMenuOpen && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: 'calc(100% + 8px)',
+                  right: 0,
+                  minWidth: 190,
+                  background: '#fff',
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 12,
+                  boxShadow: '0 14px 28px rgba(0,0,0,0.18)',
+                  padding: 6,
+                  zIndex: 2001,
+                }}
+              >
+                <div style={{ padding: '8px 10px', fontSize: 12, color: '#5d6b82', borderBottom: '1px solid #eef2f6', marginBottom: 6 }}>
+                  Angemeldet als <strong style={{ color: '#1a1a1a' }}>{authUser}</strong>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                    border: 'none',
+                    borderRadius: 8,
+                    background: '#fff5f5',
+                    color: '#b23b36',
+                    fontWeight: 700,
+                    padding: '9px 10px',
+                    cursor: 'pointer',
+                    fontSize: 13,
+                  }}
+                >
+                  <LuLogOut size={14} />
+                  Logout
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </header>
 
-      {open && <div onClick={() => setOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 1998 }} />}
+      {(open || accountMenuOpen) && (
+        <div
+          onClick={() => {
+            setOpen(false);
+            setAccountMenuOpen(false);
+          }}
+          style={{ position: 'fixed', inset: 0, zIndex: 1998 }}
+        />
+      )}
 
       <nav
         style={{
@@ -171,13 +420,16 @@ export default function Header() {
           left: 0,
           width: 260,
           background: '#fff',
-          boxShadow: '2px 0 16px rgba(0,0,0,0.15)',
+          boxShadow: '0 10px 18px rgba(0,0,0,0.15)',
           zIndex: 1999,
           paddingTop: 8,
           paddingBottom: 8,
-          fontFamily: 'system-ui, sans-serif',
-          transform: open ? 'translateX(0)' : 'translateX(-100%)',
-          transition: 'transform 0.22s ease',
+          fontFamily: 'Inter, system-ui, sans-serif',
+          transform: open ? 'translateY(0)' : 'translateY(calc(-100% - 37px))',
+          transformOrigin: 'top left',
+          opacity: open ? 1 : 0,
+          pointerEvents: open ? 'auto' : 'none',
+          transition: 'transform 0.22s ease, opacity 0.22s ease',
         }}
       >
         {NAV_ITEMS.map((item) => {
@@ -222,23 +474,21 @@ export default function Header() {
           >
             <div
               style={{
-                width: 'min(100%, 420px)',
+                width: 'min(100%, 760px)',
                 background: '#fff',
                 borderRadius: 16,
                 boxShadow: '0 18px 48px rgba(0,0,0,0.22)',
                 padding: 24,
-                fontFamily: 'system-ui, sans-serif',
+                fontFamily: 'Inter, system-ui, sans-serif',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 18 }}>
                 <div>
                   <h2 id="dummy-login-title" style={{ margin: 0, fontSize: 20, fontWeight: 800, color: '#1a1a1a' }}>
-                    Dummy Login
+                    Anmelden
                   </h2>
                   <p style={{ margin: '4px 0 0', fontSize: 13, color: '#666', lineHeight: 1.5 }}>
-                    {authUser
-                      ? 'Du bist aktuell eingeloggt und kannst dich hier wieder ausloggen.'
-                      : 'Für den Demo-Login reicht ein beliebiger Benutzername mit Passwort.'}
+                    Melden Sie sich via AGOV access App oder mit den Demo-Zugangsdaten an.
                   </p>
                 </div>
 
@@ -252,105 +502,116 @@ export default function Header() {
                 </button>
               </div>
 
-              {authUser ? (
-                <div style={{ display: 'grid', gap: 14 }}>
-                  <div
-                    style={{
-                      padding: '14px 16px',
-                      borderRadius: 12,
-                      background: '#f5f9ff',
-                      border: '1px solid #d8e8ff',
-                    }}
-                  >
-                    <div style={{ fontSize: 12, color: '#5d6b82', marginBottom: 4 }}>Angemeldet als</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: '#1a1a1a' }}>{authUser}</div>
-                  </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 1.2fr) minmax(240px, 0.8fr)', gap: 18 }}>
+                <div style={{ display: 'grid', gap: 16 }}>
+                  {!authUser && (
+                    <>
+                      <div
+                        style={{
+                          padding: '18px 18px 16px',
+                          borderRadius: 28,
+                          background: '#f3f3f5',
+                          border: '1px solid #ecebf2',
+                          display: 'grid',
+                          gap: 18,
+                        }}
+                      >
+                        <div style={{ fontSize: 24, fontWeight: 800, color: '#26236d', lineHeight: 1.15, maxWidth: 280 }}>
+                          Login mit AGOV access App
+                        </div>
 
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    style={{
-                      display: 'inline-flex',
-                      justifyContent: 'center',
-                      alignItems: 'center',
-                      gap: 8,
-                      border: 'none',
-                      borderRadius: 10,
-                      background: '#d9534f',
-                      color: '#fff',
-                      fontWeight: 700,
-                      padding: '11px 14px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    <LuLogOut size={16} />
-                    Ausloggen
-                  </button>
-                </div>
-              ) : (
-                <form onSubmit={handleLogin} style={{ display: 'grid', gap: 12 }}>
-                  <label style={{ display: 'grid', gap: 6, fontSize: 13, color: '#333' }}>
-                    Benutzername
-                    <input
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      placeholder="z. B. demo.user"
-                      style={{
-                        border: '1px solid #d0d7de',
-                        borderRadius: 10,
-                        padding: '10px 12px',
-                        fontSize: 14,
-                      }}
-                    />
-                  </label>
+                        <div style={{ display: 'flex', justifyContent: 'center' }}>
+                          <DummyQrCode size={196} />
+                        </div>
 
-                  <label style={{ display: 'grid', gap: 6, fontSize: 13, color: '#333' }}>
-                    Passwort
-                    <input
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="beliebiges Passwort"
-                      style={{
-                        border: '1px solid #d0d7de',
-                        borderRadius: 10,
-                        padding: '10px 12px',
-                        fontSize: 14,
-                      }}
-                    />
-                  </label>
+                        <div
+                          style={{
+                            display: 'grid',
+                            gridTemplateColumns: '76px minmax(0, 1fr)',
+                            gap: 14,
+                            alignItems: 'center',
+                            padding: '14px 16px',
+                            borderRadius: 18,
+                            background: '#ded7ec',
+                          }}
+                        >
+                          <AgovAccessCardIcon />
+                          <div style={{ fontSize: 15, fontWeight: 700, color: '#26236d', lineHeight: 1.28 }}>
+                            Melden Sie sich an, indem Sie den QR-Code mit Ihrer AGOV access App scannen
+                          </div>
+                        </div>
+                      </div>
 
-                  {error && (
-                    <div
-                      style={{
-                        fontSize: 12,
-                        color: '#c0392b',
-                        background: '#fff3f3',
-                        border: '1px solid #f5c5c5',
-                        borderRadius: 8,
-                        padding: '8px 10px',
-                      }}
-                    >
-                      {error}
-                    </div>
+                      <hr style={{ border: 'none', borderTop: '1px solid #e5e7eb', margin: '2px 0 0' }} />
+                    </>
                   )}
 
-                  <button
-                    type="submit"
-                    style={{
-                      border: 'none',
-                      borderRadius: 10,
-                      background: 'rgba(0, 159, 227, 1)',
-                      color: '#fff',
-                      fontWeight: 700,
-                      padding: '11px 14px',
-                      cursor: 'pointer',
-                    }}
-                  >
-                    Einloggen
-                  </button>
-                </form>
-              )}
+                  <form onSubmit={handleLogin} style={{ display: 'grid', gap: 12 }}>
+                      <label style={{ display: 'grid', gap: 6, fontSize: 13, color: '#333' }}>
+                        Benutzername
+                        <input
+                          value={username}
+                          onChange={(e) => setUsername(e.target.value)}
+                          placeholder="z. B. demo.user"
+                          style={{
+                            border: '1px solid #d0d7de',
+                            borderRadius: 10,
+                            padding: '10px 12px',
+                            fontSize: 14,
+                          }}
+                        />
+                      </label>
+
+                      <label style={{ display: 'grid', gap: 6, fontSize: 13, color: '#333' }}>
+                        Passwort
+                        <input
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="beliebiges Passwort"
+                          style={{
+                            border: '1px solid #d0d7de',
+                            borderRadius: 10,
+                            padding: '10px 12px',
+                            fontSize: 14,
+                          }}
+                        />
+                      </label>
+
+                      {error && (
+                        <div
+                          style={{
+                            fontSize: 12,
+                            color: '#c0392b',
+                            background: '#fff3f3',
+                            border: '1px solid #f5c5c5',
+                            borderRadius: 8,
+                            padding: '8px 10px',
+                          }}
+                        >
+                          {error}
+                        </div>
+                      )}
+
+                      <button
+                        type="submit"
+                        style={{
+                          border: 'none',
+                          borderRadius: 10,
+                          background: 'rgba(0, 159, 227, 1)',
+                          color: '#fff',
+                          fontWeight: 700,
+                          padding: '11px 14px',
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Einloggen
+                      </button>
+                    </form>
+                </div>
+
+                <RegistrationPanel />
+              </div>
             </div>
           </div>
         </>

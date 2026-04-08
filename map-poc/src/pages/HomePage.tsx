@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+import { LuFileText, LuLayers3 } from 'react-icons/lu';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 
@@ -8,25 +10,25 @@ interface MockupEntry {
   path: string;
   title: string;
   description: string;
-  icon: string;
+  icon: ReactNode;
   status: 'ready' | 'wip' | 'planned';
 }
 
 const MOCKUPS: MockupEntry[] = [
   {
     path: '/map',
-    title: 'Objektwesen v1 Mockup',
+    title: 'Objektwesen v0.1 Mockup',
     description:
-      'Interaktive Karte mit WMS-Katasterebene und WFS-Vektordaten. Parzellen anklicken für Attributinformationen.',
-    icon: '🗺️',
+      'Basis Mockup.',
+    icon: <LuLayers3 size={28} strokeWidth={1.9} />,
     status: 'ready',
   },
   {
     path: '/mapv2',
-    title: 'Objektwesen v2 Mockup',
+    title: 'Objektwesen v0.2 Mockup',
     description:
-      'Kopie des Parzellenviewers als Ausgangsbasis für neue Features.',
-    icon: '🗺️',
+      'Interaktive Karte mit WMS-Katasterebene und WFS-Vektordaten. Parzellen anklicken für Attributinformationen.',
+    icon: <LuFileText size={28} strokeWidth={1.9} />,
     status: 'wip',
   },
 ];
@@ -47,18 +49,21 @@ function MockupCard({ entry }: { entry: MockupEntry }) {
     <div
       style={{
         background: '#fff',
-        borderRadius: 12,
+        borderRadius: 16,
         boxShadow: '0 2px 12px rgba(0,0,0,0.09)',
-        padding: '28px 28px 24px',
+        padding: '32px 32px 28px',
         display: 'flex',
         flexDirection: 'column',
-        gap: 12,
+        gap: 16,
+        minHeight: 240,
+        height: '100%',
         cursor: isClickable ? 'pointer' : 'default',
         opacity: entry.status === 'planned' ? 0.6 : 1,
         transition: 'box-shadow 0.15s, transform 0.15s',
         textDecoration: 'none',
         color: 'inherit',
         border: '1px solid #e8e8e8',
+        boxSizing: 'border-box',
       }}
       onMouseEnter={e => {
         if (isClickable) {
@@ -71,10 +76,24 @@ function MockupCard({ entry }: { entry: MockupEntry }) {
         (e.currentTarget as HTMLDivElement).style.transform = 'translateY(0)';
       }}
     >
-      <div style={{ fontSize: 40, lineHeight: 1 }}>{entry.icon}</div>
+      <div
+        style={{
+          width: 44,
+          height: 44,
+          borderRadius: 12,
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: '#f3f6f9',
+          color: '#1a1a1a',
+          lineHeight: 1,
+        }}
+      >
+        {entry.icon}
+      </div>
 
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-        <span style={{ fontWeight: 700, fontSize: 17, color: '#1a1a1a' }}>{entry.title}</span>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+        <span style={{ fontWeight: 700, fontSize: 18, color: '#1a1a1a' }}>{entry.title}</span>
         <span style={{
           fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
           background: badge.bg, color: badge.color,
@@ -83,7 +102,7 @@ function MockupCard({ entry }: { entry: MockupEntry }) {
         </span>
       </div>
 
-      <p style={{ margin: 0, fontSize: 14, color: '#555', lineHeight: 1.6 }}>
+      <p style={{ margin: 0, fontSize: 14, color: '#555', lineHeight: 1.6, flexGrow: 1 }}>
         {entry.description}
       </p>
 
@@ -97,7 +116,7 @@ function MockupCard({ entry }: { entry: MockupEntry }) {
 
   if (!isClickable) return card;
 
-  return <Link to={entry.path} style={{ textDecoration: 'none', color: 'inherit' }}>{card}</Link>;
+  return <Link to={entry.path} style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%' }}>{card}</Link>;
 }
 
 // ─── Home page ────────────────────────────────────────────────────────────────
@@ -124,11 +143,12 @@ export default function HomePage() {
 
       {/* Grid */}
       <div style={{
-        maxWidth: 800,
+        maxWidth: 1080,
         margin: '0 auto',
         display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-        gap: 20,
+        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
+        gap: 24,
+        alignItems: 'stretch',
       }}>
         {MOCKUPS.map(m => <MockupCard key={m.path} entry={m} />)}
       </div>

@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { LuHouse, LuSearch, LuX } from 'react-icons/lu';
+import { LuDownload, LuFileText, LuGlobe, LuHouse, LuLayers3, LuLock, LuMail, LuPhone, LuSearch, LuX } from 'react-icons/lu';
 import { PiCrane } from 'react-icons/pi';
 import {
   MapContainer,
@@ -18,7 +18,7 @@ import {
   buildMockFeatures,
   MIN_ZOOM_FOR_PARCELS,
 } from '../wfsService';
-import Header from '../components/Header';
+import Header, { AUTH_EVENT_NAME, AUTH_STORAGE_KEY } from '../components/Header';
 
 // ─── Fix Leaflet's default marker icons broken by Vite's bundler ──────────────
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -66,6 +66,15 @@ interface BuildingInfo   { nr: string; egid: string; bezeichnung: string; status
 interface ProjectInfo    { dossierNr: string; bezeichnung: string; status: string; }
 interface BodenbedeckungEntry { label: string; area: string; }
 interface ZonenplanEntry    { zonentyp: string; gemeinde: string; flaeche: string; anteil: string; }
+interface ContactInfo {
+  office: string;
+  person: string;
+  street: string;
+  city: string;
+  phone: string;
+  email: string;
+  website: string;
+}
 interface ObjectInfo {
   grundstueckNummer: string;
   egrid:             string;
@@ -80,6 +89,8 @@ interface ObjectInfo {
   flaecheGrundbuch:      string;
   gebaeude:          BuildingInfo[];
   bauprojekte:       ProjectInfo[];
+  nachfuehrungsgeometer: ContactInfo;
+  grundbuchamtKontakt:   ContactInfo;
   // Grundstück-Sektion
   katasterwert:      string;
   dienstbarkeiten:   string[];
@@ -204,26 +215,26 @@ const DUMMY_BODENBEDECKUNG: BodenbedeckungEntry[][] = [
 ];
 const DUMMY_GRUNDNUTZUNG: ZonenplanEntry[][] = [
   [
-    { zonentyp: 'Strasse',                     gemeinde: 'Verkehrszone',         flaeche: '108 m²',  anteil: '14%'  },
-    { zonentyp: 'Kern- oder Dorfzone bis 17m', gemeinde: 'Kernzone B Markt',     flaeche: '641 m²',  anteil: '86%'  },
+    { zonentyp: 'Strasse',                     gemeinde: 'Verkehrszone',           flaeche: '108 m²',  anteil: '14%'  },
+    { zonentyp: 'Zentrumszone',               gemeinde: 'Zentrumszone Dorfkern', flaeche: '641 m²',  anteil: '86%'  },
   ],
   [
-    { zonentyp: 'Wohnzone W2',                 gemeinde: 'Wohnzone 2-geschossig', flaeche: '920 m²',  anteil: '100%' },
+    { zonentyp: 'Wohnzone bis 14m',           gemeinde: 'Wohnzone W3 bis 14m',   flaeche: '920 m²',  anteil: '100%' },
   ],
   [
-    { zonentyp: 'Gewerbezone',                 gemeinde: 'Gewerbezone GE',        flaeche: '1200 m²', anteil: '75%'  },
-    { zonentyp: 'Strasse',                     gemeinde: 'Verkehrszone',          flaeche: '400 m²',  anteil: '25%'  },
+    { zonentyp: 'Arbeitszone',                gemeinde: 'Arbeitszone A',         flaeche: '1200 m²', anteil: '75%'  },
+    { zonentyp: 'Strasse',                    gemeinde: 'Verkehrszone',          flaeche: '400 m²',  anteil: '25%'  },
   ],
   [
-    { zonentyp: 'Wohnzone W3',                 gemeinde: 'Wohnzone 3-geschossig', flaeche: '750 m²',  anteil: '62%'  },
-    { zonentyp: 'Grünzone',                    gemeinde: 'Öffentliche Grünfläche', flaeche: '460 m²', anteil: '38%'  },
+    { zonentyp: 'Wohnzone W3',                gemeinde: 'Wohnzone 3-geschossig', flaeche: '750 m²',  anteil: '62%'  },
+    { zonentyp: 'Grünzone',                   gemeinde: 'Öffentliche Grünfläche', flaeche: '460 m²',  anteil: '38%'  },
   ],
   [
-    { zonentyp: 'Industriezone',               gemeinde: 'Industriezone I',        flaeche: '3400 m²', anteil: '100%' },
+    { zonentyp: 'Industrie- / Arbeitszone',   gemeinde: 'Arbeitszone Industrie', flaeche: '3400 m²', anteil: '100%' },
   ],
   [
-    { zonentyp: 'Wohnzone W4',                 gemeinde: 'Wohnzone 4-geschossig', flaeche: '2100 m²', anteil: '88%'  },
-    { zonentyp: 'Strasse',                     gemeinde: 'Verkehrszone',          flaeche: '290 m²',  anteil: '12%'  },
+    { zonentyp: 'Wohnzone W4',                gemeinde: 'Wohnzone 4-geschossig', flaeche: '2100 m²', anteil: '88%'  },
+    { zonentyp: 'Strasse',                    gemeinde: 'Verkehrszone',          flaeche: '290 m²',  anteil: '12%'  },
   ],
 ];
 const DUMMY_ARTEN: string[] = [
@@ -328,6 +339,91 @@ const DUMMY_OFFENE_GESCHAEFTE: string[][] = [
   [],
   ['Pfandentlassung in Bearbeitung'],
 ];
+const DUMMY_NACHFUEHRUNGSGEOMETER: ContactInfo[] = [
+  {
+    office: 'Ing.- und Vermessungsbüro Hans Ammann AG',
+    person: 'Würsch Martin',
+    street: 'Hauptstrasse 9',
+    city: '6280 Hochdorf',
+    phone: '041 914 60 00',
+    email: 'info@ing-ammann.ch',
+    website: 'ing-ammann.ch',
+  },
+  {
+    office: 'Emch+Berger WSB AG',
+    person: 'Erwin Vogel',
+    street: 'Rüeggisingerstrasse 41',
+    city: '6020 Emmenbrücke',
+    phone: '041 269 40 00',
+    email: 'info@emchberger.ch',
+    website: 'emchberger.ch',
+  },
+  {
+    office: 'Hans Ammann AG',
+    person: 'Martin Würsch',
+    street: 'Hauptstrasse 9',
+    city: '6280 Hochdorf',
+    phone: '041 914 60 00',
+    email: 'info@ing-ammann.ch',
+    website: 'ing-ammann.ch',
+  },
+  {
+    office: 'Kost + Partner AG',
+    person: 'Samuel Bühler',
+    street: 'Industriestrasse 14',
+    city: '6210 Sursee',
+    phone: '041 926 06 06',
+    email: 'info@kost-partner.ch',
+    website: 'kost-partner.ch',
+  },
+  {
+    office: 'Heini Geomatik AG',
+    person: 'Andreas Heini',
+    street: 'Vorstadt 19',
+    city: '6130 Willisau',
+    phone: '041 972 79 00',
+    email: 'info@heinigeomatik.ch',
+    website: 'heinigeomatik.ch',
+  },
+  {
+    office: 'geopoint lütolf ag',
+    person: 'Gregor Lütolf',
+    street: 'Dorf 33',
+    city: '6162 Entlebuch',
+    phone: '041 482 60 00',
+    email: 'info@geopoint-luetolf.ch',
+    website: 'geopoint-luetolf.ch',
+  },
+];
+const DUMMY_GRUNDBUCHAEMTER: ContactInfo[] = [
+  {
+    office: 'Grundbuchamt Luzern Ost – Geschäftsstelle Hochdorf',
+    person: 'Grundbuchamt Luzern Ost',
+    street: 'Hauptstrasse 5',
+    city: '6280 Hochdorf',
+    phone: '041 318 12 50',
+    email: 'gbho@lu.ch',
+    website: 'grundbuch.lu.ch',
+  },
+  {
+    office: 'Grundbuchamt Luzern West',
+    person: 'Grundbuchamt Luzern West',
+    street: 'Bahnhofstrasse 5',
+    city: '6170 Schüpfheim',
+    phone: '041 228 39 00',
+    email: 'gbsc@lu.ch',
+    website: 'grundbuch.lu.ch',
+  },
+  {
+    office: 'Grundbuchamt Luzern Ost – Geschäftsstelle Kriens',
+    person: 'Grundbuchamt Luzern Ost',
+    street: 'Meisterstrasse 4',
+    city: '6010 Kriens',
+    phone: '041 318 12 00',
+    email: 'gbkr@lu.ch',
+    website: 'grundbuch.lu.ch',
+  },
+];
 
 function buildDummyInfo(seed: string, nummer?: string, egrid?: string): ObjectInfo {
   const h = hashStr(seed);
@@ -347,6 +443,8 @@ function buildDummyInfo(seed: string, nummer?: string, egrid?: string): ObjectIn
     flaecheGrundbuch:      `${flaeche.toLocaleString('de-CH')} m²`,
     gebaeude:          DUMMY_BUILDINGS.slice(0, 1 + (h % 3)),
     bauprojekte:       DUMMY_PROJECTS.slice(0, 1 + (h % Math.min(DUMMY_PROJECTS.length, 5))),
+    nachfuehrungsgeometer: DUMMY_NACHFUEHRUNGSGEOMETER[h % DUMMY_NACHFUEHRUNGSGEOMETER.length],
+    grundbuchamtKontakt:   DUMMY_GRUNDBUCHAEMTER[h % DUMMY_GRUNDBUCHAEMTER.length],
     katasterwert:      DUMMY_KATASTERWERTE[h % DUMMY_KATASTERWERTE.length],
     dienstbarkeiten:   DUMMY_DIENSTBARKEITEN[h % DUMMY_DIENSTBARKEITEN.length],
     anmerkungen:       DUMMY_ANMERKUNGEN[h % DUMMY_ANMERKUNGEN.length],
@@ -409,23 +507,6 @@ function ErrorBox({ message, onClose }: { message: string; onClose: () => void }
   );
 }
 
-/** Shown when the map is zoomed out below the parcel-load threshold. */
-function ZoomHint() {
-  return (
-    <div style={{
-      position: 'fixed', bottom: 32, left: 32, zIndex: 1000,
-      background: 'rgba(255,255,255,0.9)', borderRadius: 8,
-      boxShadow: '0 2px 10px rgba(0,0,0,0.12)',
-      padding: '10px 14px',
-      fontSize: 13, color: '#555',
-    }}>
-      <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-        <LuSearch size={13} /> Zoom in to level {MIN_ZOOM_FOR_PARCELS}+ to load interactive parcels
-      </span>
-    </div>
-  );
-}
-
 // ─── Object info panel & search ──────────────────────────────────────────────
 
 const STATUS_BADGE: Record<string, { bg: string; color: string }> = {
@@ -438,26 +519,808 @@ const STATUS_BADGE: Record<string, { bg: string; color: string }> = {
   'In Bearbeitung': { bg: '#fff3cd', color: '#856404' },
 };
 
-function Section({ title, children }: { title: string; children: ReactNode }) {
+function SectionIcon({ title }: { title: string }) {
+  const iconProps = { size: 13, color: '#111' };
+
+  let icon: ReactNode = <LuFileText {...iconProps} />;
+  if (title === 'Grundstück') icon = <LuLayers3 {...iconProps} />;
+  else if (title === 'Zuständige Stellen') icon = <LuPhone {...iconProps} />;
+  else if (title === 'Export') icon = <LuDownload {...iconProps} />;
+  else if (title === 'Gebäude') icon = <LuHouse {...iconProps} />;
+  else if (title === 'Bauprojekte') icon = <PiCrane size={14} color="#111" />;
+
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 16,
+        height: 16,
+        flexShrink: 0,
+      }}
+    >
+      {icon}
+    </span>
+  );
+}
+
+function Section({
+  title,
+  children,
+  collapsible = false,
+  defaultOpen = true,
+}: {
+  title: string;
+  children: ReactNode;
+  collapsible?: boolean;
+  defaultOpen?: boolean;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+
   return (
     <div>
-      <div style={{ fontSize: 11, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 6 }}>
-        {title}
+      <div
+        onClick={collapsible ? () => setOpen((value) => !value) : undefined}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 10,
+          marginBottom: open ? 8 : 0,
+          cursor: collapsible ? 'pointer' : 'default',
+          userSelect: collapsible ? 'none' : 'auto',
+        }}
+        aria-expanded={collapsible ? open : undefined}
+      >
+        <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+          <SectionIcon title={title} />
+          <div style={{ fontSize: 10.5, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.07em' }}>
+            {title}
+          </div>
+        </div>
+
+        {collapsible && (
+          <span style={{ color: '#3388ff', fontWeight: 700, fontSize: 12 }}>
+            {open ? '▲' : '▼'}
+          </span>
+        )}
       </div>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>{children}</div>
-      <hr style={{ border: 'none', borderTop: '1px solid #e8e8e8', margin: '10px 0 0 0' }} />
+      {open && <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>{children}</div>}
+      <hr style={{ border: 'none', borderTop: '1px solid #f0f0f0', margin: '12px 0 0 0' }} />
     </div>
   );
 }
 
-function FieldRow({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
+function FieldRow({ label, value, mono = false }: { label: string; value: ReactNode; mono?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
-      <span style={{ color: '#666', flexShrink: 0 }}>{label}</span>
-      <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right', fontSize: mono ? 12 : 13 }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, fontSize: 13, lineHeight: 1.45 }}>
+      <span style={{ color: '#6b7280', flexShrink: 0, fontSize: 12 }}>{label}</span>
+      <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right', fontSize: mono ? 12 : 13, maxWidth: '62%' }}>
         {value}
       </span>
     </div>
+  );
+}
+
+function InlineMetaIcon({ children }: { children: ReactNode }) {
+  return (
+    <span
+      aria-hidden="true"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 14,
+        height: 14,
+        flexShrink: 0,
+      }}
+    >
+      {children}
+    </span>
+  );
+}
+
+function ProtectedFieldRow({
+  label,
+  value,
+  isAuthenticated,
+}: {
+  label: string;
+  value: string;
+  isAuthenticated: boolean;
+}) {
+  return (
+    <FieldRow
+      label={label}
+      value={isAuthenticated ? value : (
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#6b7280' }}>
+          <InlineMetaIcon><LuLock size={12} color="#111" /></InlineMetaIcon>
+          <span>Login erforderlich</span>
+        </span>
+      )}
+    />
+  );
+}
+
+function ContactRow({ label, contact }: { label: string; contact: ContactInfo }) {
+  const phoneHref = `tel:${contact.phone.replace(/[^\d+]/g, '')}`;
+  const webHref = `https://${contact.website}`;
+  const actionStyle = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    background: '#f4f4f5',
+    color: '#111',
+    textDecoration: 'none',
+    flexShrink: 0,
+  } as const;
+  const linkStyle = { color: '#4b5563', textDecoration: 'none' } as const;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 7, fontSize: 13, padding: '11px 12px', borderRadius: 10, background: '#fcfcfc', border: '1px solid #f1f1f1' }}>
+      <span style={{ color: '#6b7280', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
+
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, lineHeight: 1.4 }}>
+          <span style={{ fontWeight: 700, color: '#111827' }}>{contact.office}</span>
+          <span style={{ color: '#4b5563' }}>{contact.person}</span>
+        </div>
+        <div style={{ display: 'inline-flex', gap: 6 }}>
+          <a href={phoneHref} aria-label={`Telefon ${label}`} style={actionStyle}><LuPhone size={13} /></a>
+          <a href={`mailto:${contact.email}`} aria-label={`E-Mail ${label}`} style={actionStyle}><LuMail size={13} /></a>
+          <a href={webHref} target="_blank" rel="noreferrer" aria-label={`Website ${label}`} style={actionStyle}><LuGlobe size={13} /></a>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1, color: '#4b5563', lineHeight: 1.4 }}>
+        <span>{contact.street}</span>
+        <span>{contact.city}</span>
+      </div>
+
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 10px', fontSize: 12 }}>
+        <a href={phoneHref} style={linkStyle}>{contact.phone}</a>
+        <a href={`mailto:${contact.email}`} style={linkStyle}>{contact.email}</a>
+        <a href={webHref} target="_blank" rel="noreferrer" style={linkStyle}>{contact.website}</a>
+      </div>
+    </div>
+  );
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function handleDummyPdfExport(info: ObjectInfo) {
+  const popup = window.open('', '_blank', 'width=900,height=700');
+  if (!popup) {
+    window.alert('Bitte Pop-ups erlauben, um den PDF-Export zu öffnen.');
+    return;
+  }
+
+  const renderList = (title: string, values: string[]) => `
+    <div class="block">
+      <h3>${title}</h3>
+      <p>${values.length ? escapeHtml(values.join(', ')) : '—'}</p>
+    </div>
+  `;
+
+  const renderContact = (title: string, contact: ContactInfo) => `
+    <div class="block">
+      <h3>${title}</h3>
+      <p>
+        <strong>${escapeHtml(contact.office)}</strong><br />
+        ${escapeHtml(contact.person)}<br />
+        ${escapeHtml(contact.street)}<br />
+        ${escapeHtml(contact.city)}<br />
+        ${escapeHtml(contact.phone)}<br />
+        ${escapeHtml(contact.email)}<br />
+        ${escapeHtml(contact.website)}
+      </p>
+    </div>
+  `;
+
+  const buildingRows = info.gebaeude.map(g => `
+    <tr>
+      <td>${escapeHtml(g.nr)}</td>
+      <td>${escapeHtml(g.egid)}</td>
+      <td>${escapeHtml(g.bezeichnung || '—')}</td>
+      <td>${escapeHtml(g.status)}</td>
+    </tr>
+  `).join('');
+
+  const projectRows = info.bauprojekte.map(p => `
+    <tr>
+      <td>${escapeHtml(p.dossierNr)}</td>
+      <td>${escapeHtml(p.bezeichnung)}</td>
+      <td>${escapeHtml(p.status)}</td>
+    </tr>
+  `).join('');
+
+  popup.document.write(`
+    <!doctype html>
+    <html lang="de">
+      <head>
+        <meta charset="UTF-8" />
+        <title>Grundstück ${escapeHtml(info.grundstueckNummer)} – Export</title>
+        <style>
+          body { font-family: Arial, sans-serif; color: #111; padding: 24px; line-height: 1.45; }
+          h1 { margin: 0 0 4px; font-size: 24px; }
+          h2 { margin: 24px 0 8px; font-size: 15px; text-transform: uppercase; color: #4b5563; }
+          h3 { margin: 0 0 4px; font-size: 13px; color: #374151; }
+          p { margin: 0; }
+          .meta { color: #6b7280; margin-bottom: 16px; }
+          .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 20px; }
+          .block { margin-bottom: 10px; }
+          table { width: 100%; border-collapse: collapse; margin-top: 8px; }
+          th, td { border-bottom: 1px solid #e5e7eb; padding: 6px 4px; text-align: left; font-size: 12px; vertical-align: top; }
+          th { color: #6b7280; font-size: 11px; text-transform: uppercase; }
+        </style>
+      </head>
+      <body>
+        <h1>Grundstück ${escapeHtml(info.grundstueckNummer)}</h1>
+        <div class="meta">Dummy-PDF-Export – alle verfügbaren Grundstücksdaten</div>
+
+        <h2>Stammdaten</h2>
+        <div class="grid">
+          <div class="block"><h3>EGRID</h3><p>${escapeHtml(info.egrid)}</p></div>
+          <div class="block"><h3>Gemeinde</h3><p>${escapeHtml(info.gemeinde)} (${escapeHtml(info.bfsNr)})</p></div>
+          <div class="block"><h3>Grundbuch</h3><p>${escapeHtml(info.grundbuchNr)}</p></div>
+          <div class="block"><h3>Grundstückart</h3><p>${escapeHtml(info.grundstueckArt)}</p></div>
+          <div class="block"><h3>Flurname</h3><p>${escapeHtml(info.flurname)}</p></div>
+          <div class="block"><h3>Fläche</h3><p>${escapeHtml(info.flaecheGrundbuch)}</p></div>
+        </div>
+
+        <h2>Grundstück</h2>
+        <div class="grid">
+          <div class="block"><h3>Eigentümer</h3><p>${escapeHtml(info.eigentuemer)}</p></div>
+          <div class="block"><h3>Katasterwert</h3><p>${escapeHtml(info.katasterwert)}</p></div>
+        </div>
+        ${renderList('Dienstbarkeiten / Grundlasten', info.dienstbarkeiten)}
+        ${renderList('Anmerkungen', info.anmerkungen)}
+        ${renderList('Grundpfandrechte', info.grundpfandrechte)}
+        ${renderList('Erwerbsarten', info.erwerbsarten)}
+        ${renderList('Offene Geschäfte', info.offeneGeschaefte)}
+
+        <h2>Gebäude</h2>
+        <table>
+          <thead><tr><th>Nr.</th><th>EGID</th><th>Bezeichnung</th><th>Status</th></tr></thead>
+          <tbody>${buildingRows}</tbody>
+        </table>
+
+        <h2>Bauprojekte</h2>
+        <table>
+          <thead><tr><th>Dossier</th><th>Bezeichnung</th><th>Status</th></tr></thead>
+          <tbody>${projectRows}</tbody>
+        </table>
+
+        <h2>Zuständige Stellen</h2>
+        ${renderContact('Nachführungsgeometer', info.nachfuehrungsgeometer)}
+        ${renderContact('Grundbuchamt', info.grundbuchamtKontakt)}
+      </body>
+    </html>
+  `);
+
+  popup.document.close();
+  popup.focus();
+  window.setTimeout(() => popup.print(), 200);
+}
+
+function ExportSection({ info }: { info: ObjectInfo }) {
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '2px 0' }}>
+      <span style={{ color: '#6b7280', fontSize: 12, lineHeight: 1.45 }}>
+        Exportiere alle verfügbaren Grundstücksdaten als PDF über den Browser-Druckdialog.
+      </span>
+      <button
+        onClick={() => handleDummyPdfExport(info)}
+        style={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 8,
+          alignSelf: 'flex-end',
+          padding: '9px 12px',
+          borderRadius: 8,
+          border: '1px solid #d1d5db',
+          background: '#fff',
+          color: '#111827',
+          cursor: 'pointer',
+          fontSize: 13,
+          fontWeight: 600,
+        }}
+      >
+        <LuDownload size={14} /> Als PDF exportieren
+      </button>
+    </div>
+  );
+}
+
+type ChatMessage = { role: 'assistant' | 'user'; text: string };
+type FaqMatcherEntry = { keywords: string[]; answer: string };
+
+const CHATBOT_LUZERN_BLUE = '#009fe3';
+const DUMMY_CHATBOT_GREETING = 'Guten Tag! Ich bin der Chatbot vom Kanton Luzern. Ich unterstütze Sie bei Fragen im Zusammenhang mit dem Objektwesen.\nDa ich noch lerne, ist es möglich, dass ich nicht jede Frage korrekt beantworten kann.\nWie kann ich Ihnen helfen?';
+
+export const faqMatcher: FaqMatcherEntry[] = [
+  {
+    keywords: ['funktioniert', 'wie funktioniert', 'erklarung', 'was ist das', 'wie lauft das'],
+    answer: 'Diese Anwendung zeigt geografische Daten auf einer interaktiven Karte. Klicken Sie auf ein Grundstück, um Informationen dazu zu erhalten.'
+  },
+  {
+    keywords: ['hallo', 'hi', 'hey', 'guten tag'],
+    answer: 'Hallo 🙂 Wie kann ich Ihnen helfen?'
+  },
+  {
+    keywords: ['wie geht', 'wie geht es dir', 'alles gut'],
+    answer: 'Danke 🙂 Ich bin ein Demo-Chatbot und jederzeit bereit zu helfen.'
+  },
+  {
+    keywords: ['wer bist du', 'was bist du', 'bot', 'chatbot'],
+    answer: 'Ich bin ein einfacher Chatbot und helfe Ihnen bei Fragen zu dieser Kartenanwendung.'
+  },
+  {
+    keywords: ['wer steckt dahinter', 'entwickler', 'firma', 'anbieter'],
+    answer: 'Diese Anwendung ist ein Prototyp und wurde zu Demonstrationszwecken entwickelt.'
+  },
+  {
+    keywords: ['geo luzern', 'kanton luzern geo', 'geodaten luzern'],
+    answer: 'Die Geoinformation des Kantons Luzern stellt geografische Daten wie Grundstücke, Karten und Luftbilder bereit.'
+  },
+  {
+    keywords: ['wie bedienen', 'bedienung', 'wie nutzen', 'anleitung'],
+    answer: 'Sie können die Karte bewegen, zoomen und auf Grundstücke klicken, um Informationen zu erhalten.'
+  },
+  {
+    keywords: ['hilfe', 'support', 'kontakt', 'wer hilft'],
+    answer: 'Bitte wenden Sie sich an die zuständige Fachstelle oder den Betreiber der Anwendung.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Gerne helfe ich weiter. Stellen Sie mir einfach Ihre Frage zum Objektwesen oder zur Kartenanwendung.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich bin für Sie da. Beschreiben Sie kurz Ihr Anliegen, dann versuche ich zu helfen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Natürlich. Sie können mir eine Frage zu Grundstücken, Daten oder zur Bedienung der Karte stellen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Wenn etwas unklar ist, fragen Sie mich einfach. Ich unterstütze Sie gerne im Rahmen dieser Demo.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich kann Ihnen allgemeine Hinweise zur Anwendung und zu den angezeigten Grundstücksdaten geben.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Teilen Sie mir bitte mit, wobei Sie Unterstützung benötigen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Sie können mich beispielsweise zur Karte, zu Parzellen oder zur Nutzung der Anwendung befragen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Gerne. Ich beantworte einfache Fragen zur Demo-Anwendung so gut ich kann.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Bitte formulieren Sie Ihre Frage möglichst konkret, damit ich besser unterstützen kann.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich helfe Ihnen gerne beim Verständnis der Kartenansicht und der Grundstücksinformationen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Wenn Sie möchten, können Sie direkt eine Frage zu einem Grundstück oder zu den Daten stellen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich bin ein Demo-Chatbot und gebe Ihnen gerne eine erste Orientierung.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Fragen Sie mich ruhig – ich versuche, verständlich und kurz zu antworten.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich kann Ihnen erklären, wie die Anwendung funktioniert und welche Informationen angezeigt werden.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Falls Sie Unterstützung brauchen, schreiben Sie einfach Ihr Anliegen in einem Satz.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Gerne unterstütze ich Sie bei allgemeinen Fragen zum Objektwesen und zur Kartenbedienung.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Sie dürfen mir jederzeit eine neue Frage stellen, wenn etwas unklar geblieben ist.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich bin zwar noch in der Demo-Phase, aber ich versuche, nützliche Hinweise zu geben.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Wobei darf ich Sie aktuell unterstützen?' 
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Sie können mich nach der Bedeutung von Datenfeldern oder nach der Bedienung fragen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich unterstütze Sie gerne bei ersten Fragen rund um diese Demo des Kantons Luzern.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Wenn Sie möchten, beginnen Sie mit einer kurzen Frage wie zum Beispiel: Was zeigt diese Karte?'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich kann Ihnen bei der Orientierung in der Anwendung eine erste Hilfestellung geben.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Schreiben Sie mir einfach, was Sie wissen möchten.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich beantworte gern allgemeine Fragen zu Karte, Grundstücken und verfügbaren Informationen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Wenn Sie Hilfe brauchen, formuliere ich auch gerne eine kurze Erklärung zur Anwendung.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich kann Ihnen eine erste Auskunft geben – für verbindliche Angaben wenden Sie sich bitte an die zuständige Stelle.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Probieren Sie es einfach mit einer konkreten Frage, ich antworte so gut wie möglich.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich bin bereit. Welche Information suchen Sie?' 
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Bei Unsicherheiten zur Nutzung der Anwendung können Sie mich jederzeit ansprechen.'
+  },
+  {
+    keywords: ['hilfe', 'helfen', 'hilf', 'help', 'frage', 'fragen', 'unklar', 'wissen', 'jetzt'],
+    answer: 'Ich unterstütze Sie gerne mit allgemeinen Antworten rund um diese Kartenanwendung.'
+  },
+  {
+    keywords: ['daten', 'woher daten', 'quelle', 'herkunft'],
+    answer: 'Die Daten stammen aus offiziellen Geodiensten des Kantons Luzern.'
+  },
+  {
+    keywords: ['kosten', 'gratis', 'preis', 'bezahlen'],
+    answer: 'Diese Demo-Anwendung ist kostenlos nutzbar.'
+  },
+  {
+    keywords: ['grundstuck', 'parzelle', 'land', 'flache'],
+    answer: 'Ein Grundstück ist eine abgegrenzte Fläche Land mit eigener Nummer und Nutzung.'
+  },
+  {
+    keywords: ['karte', 'map', 'ansicht', 'layer', 'karteninhalt'],
+    answer: 'Die Karte zeigt geografische Informationen und dient zur Navigation und Analyse.'
+  },
+  {
+    keywords: ['zoom', 'vergrossern', 'verkleinern'],
+    answer: 'Sie können mit dem Mausrad oder Touch-Gesten hinein- und herauszoomen.'
+  },
+  {
+    keywords: ['klicken', 'auswahlen', 'antippen'],
+    answer: 'Klicken Sie auf ein Grundstück, um Details dazu anzuzeigen.'
+  },
+  {
+    keywords: ['fehler', 'geht nicht', 'problem', 'bug'],
+    answer: 'Es scheint ein Problem zu geben. Bitte laden Sie die Seite neu oder versuchen Sie es später erneut.'
+  },
+  {
+    keywords: ['mobile', 'handy', 'smartphone'],
+    answer: 'Die Anwendung funktioniert auch auf mobilen Geräten mit Touch-Bedienung.'
+  },
+  {
+    keywords: ['browser', 'chrome', 'firefox', 'safari'],
+    answer: 'Die Anwendung läuft in modernen Webbrowsern wie Chrome, Firefox oder Safari.'
+  },
+  {
+    keywords: ['genauigkeit', 'prazision', 'wie genau'],
+    answer: 'Die Genauigkeit hängt von den zugrunde liegenden Geodaten ab und kann variieren.'
+  },
+  {
+    keywords: ['aktualitat', 'update', 'wie aktuell'],
+    answer: 'Die Daten werden regelmässig aktualisiert, jedoch kann es zu Verzögerungen kommen.'
+  },
+  {
+    keywords: ['mehr infos', 'details', 'weitere infos'],
+    answer: 'Weitere Informationen sind in einer erweiterten Version oder bei den offiziellen Stellen verfügbar.'
+  }
+];
+
+function normalizeChatText(value: string): string {
+
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function questionMatchesKeyword(normalizedQuestion: string, questionWords: string[], keyword: string): boolean {
+  const normalizedKeyword = normalizeChatText(keyword).trim();
+  if (!normalizedKeyword) return false;
+
+  if (normalizedKeyword.includes(' ')) {
+    return normalizedQuestion.includes(normalizedKeyword);
+  }
+
+  return questionWords.includes(normalizedKeyword);
+}
+
+function getFaqAnswer(question: string, previousAnswer?: string | null): string {
+  const normalizedQuestion = normalizeChatText(question);
+  const questionWords = normalizedQuestion.split(/[^a-z0-9]+/).filter(Boolean);
+
+  const matchingAnswers = faqMatcher
+    .filter(entry => entry.keywords.some(keyword => questionMatchesKeyword(normalizedQuestion, questionWords, keyword)))
+    .map(entry => entry.answer);
+
+  if (matchingAnswers.length === 0) {
+    return 'Danke für Ihre Nachricht. Dies ist aktuell ein Dummy-Chatbot des Kantons Luzern und dient nur zur Demo.';
+  }
+
+  const uniqueAnswers = Array.from(new Set(matchingAnswers));
+  const answerPool = previousAnswer && uniqueAnswers.length > 1
+    ? uniqueAnswers.filter(answer => answer !== previousAnswer)
+    : uniqueAnswers;
+
+  return answerPool[Math.floor(Math.random() * answerPool.length)];
+}
+
+function LuzernChatFabIcon({ size = 28, color = '#fff' }: { size?: number; color?: string }) {
+  return (
+    <svg viewBox="0 0 32 32" width={size} height={size} aria-hidden="true">
+      <path
+        d="M9 7.5h14A4.5 4.5 0 0 1 27.5 12v6A4.5 4.5 0 0 1 23 22.5h-4.6L12 27v-4.5H9A4.5 4.5 0 0 1 4.5 18v-6A4.5 4.5 0 0 1 9 7.5Z"
+        fill="none"
+        stroke={color}
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M11 13h10M11 16.5h7" stroke={color} strokeWidth="2.2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function DummyChatbotWidget() {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState('');
+  const [lastFaqAnswer, setLastFaqAnswer] = useState<string | null>(null);
+  const [messages, setMessages] = useState<ChatMessage[]>([
+    { role: 'assistant', text: DUMMY_CHATBOT_GREETING },
+  ]);
+  const messagesRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!messagesRef.current) return;
+    messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
+  }, [open, messages]);
+
+  const handleSend = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const text = draft.trim();
+    if (!text) return;
+
+    const answer = getFaqAnswer(text, lastFaqAnswer);
+
+    setMessages(prev => [
+      ...prev,
+      { role: 'user', text },
+      { role: 'assistant', text: answer },
+    ]);
+    setLastFaqAnswer(answer);
+    setDraft('');
+  };
+
+  return (
+    <>
+      {open && (
+        <div style={{
+          position: 'fixed',
+          right: 38,
+          bottom: 132,
+          width: 360,
+          maxWidth: 'calc(100vw - 24px)',
+          background: '#fff',
+          border: '1px solid #d9e7ef',
+          borderRadius: 16,
+          boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
+          overflow: 'hidden',
+          zIndex: 1700,
+        }}>
+          <div style={{
+            background: CHATBOT_LUZERN_BLUE,
+            color: '#fff',
+            padding: '12px 14px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            gap: 10,
+          }}>
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 700 }}>
+              <LuzernChatFabIcon size={18} />
+              Chatbot Kanton Luzern
+            </span>
+            <button
+              onClick={() => setOpen(false)}
+              style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer', display: 'inline-flex', padding: 0 }}
+              aria-label="Chatbot schliessen"
+            >
+              <LuX size={18} />
+            </button>
+          </div>
+
+          <div
+            ref={messagesRef}
+            style={{
+              maxHeight: 320,
+              overflowY: 'auto',
+              padding: 12,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              background: '#f7fbfe',
+            }}
+          >
+            {messages.map((message, index) => (
+              <div
+                key={index}
+                style={{
+                  alignSelf: message.role === 'user' ? 'flex-end' : 'flex-start',
+                  maxWidth: '88%',
+                  background: message.role === 'user' ? '#dff2fd' : '#fff',
+                  color: '#1f2937',
+                  border: message.role === 'user' ? '1px solid #c5e8fb' : '1px solid #e8eef2',
+                  borderRadius: 12,
+                  padding: '9px 10px',
+                  fontSize: 13,
+                  lineHeight: 1.45,
+                  whiteSpace: 'pre-line',
+                }}
+              >
+                {message.text}
+              </div>
+            ))}
+          </div>
+
+          <form onSubmit={handleSend} style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid #eef2f6', background: '#fff' }}>
+            <input
+              value={draft}
+              onChange={e => setDraft(e.target.value)}
+              placeholder="Frage eingeben …"
+              style={{
+                flex: 1,
+                border: '1px solid #d1d5db',
+                borderRadius: 10,
+                padding: '10px 12px',
+                fontSize: 13,
+                outline: 'none',
+              }}
+            />
+            <button
+              type="submit"
+              style={{
+                border: 'none',
+                borderRadius: 10,
+                background: CHATBOT_LUZERN_BLUE,
+                color: '#fff',
+                padding: '0 12px',
+                fontSize: 13,
+                fontWeight: 700,
+                cursor: 'pointer',
+              }}
+            >
+              Senden
+            </button>
+          </form>
+        </div>
+      )}
+
+      <button
+        onClick={() => setOpen(value => !value)}
+        aria-label={open ? 'Chatbot schliessen' : 'Chatbot öffnen'}
+        title="Chatbot"
+        style={{
+          position: 'fixed',
+          right: 68,
+          bottom: 45,
+          width: 75,
+          height: 75,
+          borderRadius: 999,
+          border: 'none',
+          background: CHATBOT_LUZERN_BLUE,
+          color: '#fff',
+          boxShadow: '0 10px 22px rgba(0, 159, 227, 0.32)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          zIndex: 1700,
+        }}
+      >
+        <LuzernChatFabIcon size={46} />
+      </button>
+    </>
+  );
+}
+
+const ZONENPLAN_SYMBOL_PATH = 'M -10,-10 L 10,0 L 10,10 L -10,10 L -10,-10 Z';
+const BODENBEDECKUNG_SYMBOL_PATH = 'M 0,-10 L 10,0 L 0,10 L -10,0 L 0,-10 Z';
+const TINY_SYMBOL_STROKE = 'rgba(104, 104, 104, 1)';
+
+function normalizeLegendLabel(value: string): string {
+  return value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
+function getBodenbedeckungColor(label: string): string {
+  const key = normalizeLegendLabel(label);
+  if (key.includes('wald')) return 'rgba(76, 175, 80, 1)';
+  if (key.includes('gewasser')) return 'rgba(78, 160, 220, 1)';
+  if (key.includes('garten') || key.includes('landwirtschaft')) return 'rgba(147, 196, 84, 1)';
+  if (key.includes('gebaude')) return 'rgba(159, 122, 85, 1)';
+  if (key.includes('verkehr') || key.includes('befestigte')) return 'rgba(159, 166, 178, 1)';
+  return 'rgba(208, 208, 208, 1)';
+}
+
+function getZoneColor(zonentyp: string, gemeinde?: string): string {
+  const key = normalizeLegendLabel(`${zonentyp} ${gemeinde ?? ''}`);
+  if (key.includes('wald')) return 'rgba(76, 175, 80, 1)';
+  if (key.includes('grunzone') || key.includes('grun')) return 'rgba(180, 229, 168, 1)';
+  if (key.includes('arbeitszone') || key.includes('gewerbezone') || key.includes('industriezone')) return 'rgba(69, 135, 214, 1)';
+  if (key.includes('zentrumszone') || key.includes('kern') || key.includes('dorfzone')) return 'rgba(217, 196, 157, 1)';
+  if (key.includes('wohnzone w3')) return 'rgba(214, 169, 18, 1)';
+  if (key.includes('wohnzone')) return 'rgba(247, 201, 38, 1)';
+  if (key.includes('strasse') || key.includes('verkehrszone')) return 'rgba(168, 176, 185, 1)';
+  return 'rgba(205, 214, 221, 1)';
+}
+
+function TinyLegendSymbol({ fill, title, variant = 'zonenplan' }: { fill: string; title: string; variant?: 'zonenplan' | 'bodenbedeckung' }) {
+  const path = variant === 'bodenbedeckung' ? BODENBEDECKUNG_SYMBOL_PATH : ZONENPLAN_SYMBOL_PATH;
+
+  return (
+    <span title={title} aria-hidden="true" style={{ display: 'inline-flex', width: 12, height: 12, flexShrink: 0, marginTop: 2 }}>
+      <svg viewBox="-10 -10 20 20" width="12" height="12">
+        <path
+          d={path}
+          fill={fill}
+          fillRule="evenodd"
+          stroke={TINY_SYMBOL_STROKE}
+          strokeDasharray="none"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          strokeMiterlimit="4"
+          strokeWidth="1.3333333333333333"
+        />
+      </svg>
+    </span>
   );
 }
 
@@ -481,8 +1344,11 @@ function CollapsibleZonenplan({ entries }: { entries: ZonenplanEntry[] }) {
             <span style={{ textAlign: 'right' }}>Anteil</span>
           </div>
           {entries.map((e, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '0 8px', fontSize: 12, alignItems: 'baseline' }}>
-              <span style={{ color: '#555' }}>{e.zonentyp}</span>
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '0 8px', fontSize: 12, alignItems: 'center' }}>
+              <span style={{ color: '#555', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <TinyLegendSymbol fill={getZoneColor(e.zonentyp, e.gemeinde)} title={e.zonentyp} variant="zonenplan" />
+                <span>{e.zonentyp}</span>
+              </span>
               <span style={{ color: '#555' }}>{e.gemeinde}</span>
               <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right' }}>{e.flaeche}</span>
               <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right' }}>{e.anteil}</span>
@@ -580,8 +1446,11 @@ function CollapsibleBodenbedeckung({ entries }: { entries: BodenbedeckungEntry[]
       {open && (
         <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {entries.map((e, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
-              <span style={{ color: '#555' }}>{e.label}</span>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
+              <span style={{ color: '#555', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                <TinyLegendSymbol fill={getBodenbedeckungColor(e.label)} title={e.label} variant="bodenbedeckung" />
+                <span>{e.label}</span>
+              </span>
               <span style={{ fontWeight: 600, color: '#1a1a1a' }}>{e.area}</span>
             </div>
           ))}
@@ -622,11 +1491,37 @@ function CollapsibleStringList({ label, entries }: { label: string; entries: str
 }
 
 function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => void }) {
+  const [authUser, setAuthUser] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const syncAuth = () => {
+      setAuthUser(window.localStorage.getItem(AUTH_STORAGE_KEY));
+    };
+
+    const onAuthChange = (event: Event) => {
+      const customEvent = event as CustomEvent<string | null>;
+      setAuthUser(customEvent.detail ?? window.localStorage.getItem(AUTH_STORAGE_KEY));
+    };
+
+    syncAuth();
+    window.addEventListener(AUTH_EVENT_NAME, onAuthChange);
+    window.addEventListener('focus', syncAuth);
+
+    return () => {
+      window.removeEventListener(AUTH_EVENT_NAME, onAuthChange);
+      window.removeEventListener('focus', syncAuth);
+    };
+  }, []);
+
+  const isAuthenticated = Boolean(authUser);
+
   return (
     <div style={{
-      background: '#fff', border: '1px solid #ddd', borderTop: 'none',
+      background: '#fff', border: '1px solid #e5e7eb', borderTop: 'none',
       borderRadius: '0 0 10px 10px',
-      boxShadow: '0 4px 16px rgba(0,0,0,0.14)',
+      boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
       overflow: 'hidden',
     }}>
       <div style={{
@@ -634,13 +1529,13 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
         padding: '9px 14px',
         display: 'flex', justifyContent: 'space-between', alignItems: 'center',
       }}>
-        <span style={{ fontWeight: 500, fontSize: 17 }}>Grundstück {info.grundstueckNummer}</span>
+        <span style={{ fontWeight: 500, fontSize: 16 }}>Grundstück {info.grundstueckNummer}</span>
         <button onClick={onClose}
           style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#fff', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center' }}
-          aria-label="Schliessen"><LuX size={30} /></button>
+          aria-label="Schliessen"><LuX size={28} /></button>
       </div>
 
-      <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+      <div style={{ padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
         <Section title="Stammdaten">
           <FieldRow label="Grundstücknummer"              value={info.grundstueckNummer} />
           <FieldRow label="Eidg. Grundstück-ID (EGRID)"  value={info.egrid} />
@@ -655,11 +1550,16 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
 
         <Section title="Grundstück">
           <FieldRow label="Eigentümer"                    value={info.eigentuemer} />
-          <FieldRow label="Katasterwert"                  value={info.katasterwert} />
-          <FieldRow label="Dienstbarkeiten / Grundlasten" value={info.dienstbarkeiten.length ? info.dienstbarkeiten.join(', ') : '—'} />
-          <FieldRow label="Anmerkungen"                   value={info.anmerkungen.length ? info.anmerkungen.join(', ') : '—'} />
-          <FieldRow label="Grundpfandrechte"              value={info.grundpfandrechte.length ? info.grundpfandrechte.join(', ') : '—'} />
-          <FieldRow label="Erwerbsarten"                  value={info.erwerbsarten.length ? info.erwerbsarten.join(', ') : '—'} />
+          {!isAuthenticated && (
+            <div style={{ padding: '8px 10px', borderRadius: 8, background: '#f9fafb', border: '1px solid #eceff3', color: '#6b7280', fontSize: 12, lineHeight: 1.45 }}>
+              Für Katasterwert, Dienstbarkeiten, Anmerkungen, Grundpfandrechte und Erwerbsarten bitte oben rechts einloggen.
+            </div>
+          )}
+          <ProtectedFieldRow label="Katasterwert"                  value={info.katasterwert} isAuthenticated={isAuthenticated} />
+          <ProtectedFieldRow label="Dienstbarkeiten / Grundlasten" value={info.dienstbarkeiten.length ? info.dienstbarkeiten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+          <ProtectedFieldRow label="Anmerkungen"                   value={info.anmerkungen.length ? info.anmerkungen.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+          <ProtectedFieldRow label="Grundpfandrechte"              value={info.grundpfandrechte.length ? info.grundpfandrechte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+          <ProtectedFieldRow label="Erwerbsarten"                  value={info.erwerbsarten.length ? info.erwerbsarten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
           <FieldRow label="Offene Geschäfte"              value={info.offeneGeschaefte.length ? info.offeneGeschaefte.join(', ') : '—'} />
         </Section>
 
@@ -668,6 +1568,13 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
         </Section>
         <Section title="Bauprojekte">
           <CollapsibleBauprojekte entries={info.bauprojekte} />
+        </Section>
+        <Section title="Zuständige Stellen" collapsible defaultOpen={false}>
+          <ContactRow label="Nachführungsgeometer" contact={info.nachfuehrungsgeometer} />
+          <ContactRow label="Grundbuchamt" contact={info.grundbuchamtKontakt} />
+        </Section>
+        <Section title="Export">
+          <ExportSection info={info} />
         </Section>
       </div>
     </div>
@@ -745,27 +1652,6 @@ function SearchPanel({
       {hasPanel && (
         <ObjectInfoPanel info={objectInfo} onClose={() => { onClose(); setQuery(''); }} />
       )}
-    </div>
-  );
-}
-
-function WmsToggle({ visible, onToggle }: { visible: boolean; onToggle: () => void }) {
-  return (
-    <div
-      style={{
-        position: 'fixed', bottom: 90, right: 16, zIndex: 1000,
-        background: '#fff', borderRadius: 8, boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
-        padding: '10px 14px', fontSize: 13,
-        display: 'flex', alignItems: 'center', gap: 8, userSelect: 'none', cursor: 'pointer',
-      }}
-      onClick={onToggle}
-    >
-      <input
-        type="checkbox" checked={visible} onChange={onToggle}
-        style={{ cursor: 'pointer', width: 15, height: 15 }}
-        aria-label="Toggle WMS cadastral layer"
-      />
-      <span style={{ color: '#1a1a1a' }}>WMS: Cadastral (AV)</span>
     </div>
   );
 }
@@ -921,13 +1807,10 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange }
 const MAP_CENTER: [number, number] = [47.0502, 8.3093];
 
 export default function MapPageV2() {
-  const [wmsVisible,  setWmsVisible]  = useState(true);
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [objectInfo,  setObjectInfo]  = useState<ObjectInfo | null>(null);
   const [currentZoom, setCurrentZoom] = useState(14);
-
-  const showZoomHint = currentZoom < MIN_ZOOM_FOR_PARCELS && !loading && !objectInfo && !error;
 
   return (
     <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -941,17 +1824,15 @@ export default function MapPageV2() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        {wmsVisible && (
-          <WMSTileLayer
-            url={WMS_URL}
-            layers={WMS_LAYERS}
-            format="image/png"
-            transparent={true}
-            version="1.3.0"
-            opacity={0.7}
-            attribution={WMS_ATTRIBUTION}
-          />
-        )}
+        <WMSTileLayer
+          url={WMS_URL}
+          layers={WMS_LAYERS}
+          format="image/png"
+          transparent={true}
+          version="1.3.0"
+          opacity={0.7}
+          attribution={WMS_ATTRIBUTION}
+        />
 
         <ZoomControl position="bottomright" />
 
@@ -966,7 +1847,6 @@ export default function MapPageV2() {
 
       {loading && <LoadingOverlay />}
       {error && !loading && <ErrorBox message={error} onClose={() => setError(null)} />}
-      {showZoomHint && <ZoomHint />}
 
       <SearchPanel
         objectInfo={objectInfo}
@@ -974,7 +1854,7 @@ export default function MapPageV2() {
         onClose={() => setObjectInfo(null)}
       />
 
-      <WmsToggle visible={wmsVisible} onToggle={() => setWmsVisible(v => !v)} />
+      <DummyChatbotWidget />
     </div>
   );
 }
