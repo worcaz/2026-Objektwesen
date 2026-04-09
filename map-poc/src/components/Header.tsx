@@ -405,7 +405,7 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
               >
                 <div style={{ padding: '8px 10px 10px', borderBottom: '1px solid #eef2f6', marginBottom: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
                   <div style={{ fontSize: 14, color: '#5d6b82', wordBreak: 'break-word', lineHeight: 1.45 }}>
-                    Hallo <strong style={{ color: '#1a1a1a' }}>{authUser}</strong>
+                     <strong style={{ color: '#1a1a1a' }}>Hallo {authUser}</strong>
                   </div>
                   <button
                     type="button"
@@ -424,7 +424,7 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
                     border: 'none',
                     background: 'none',
                     color: '#1f2937',
-                    fontWeight: 600,
+                    fontWeight: 500,
                     padding: '8px 12px',
                     cursor: 'pointer',
                     fontSize: 12,
