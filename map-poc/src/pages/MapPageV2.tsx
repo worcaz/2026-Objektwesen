@@ -1709,7 +1709,14 @@ function DummyChatbotWidget() {
   return (
     <>
       {open && (
-        <div style={{
+        <>
+          <style>{`
+            @keyframes chatPanelIn {
+              from { opacity: 0; transform: translateY(12px) scale(0.97); }
+              to   { opacity: 1; transform: translateY(0)    scale(1); }
+            }
+          `}</style>
+          <div style={{
           position: 'fixed',
           right: 8,
           bottom: 88,
@@ -1722,6 +1729,8 @@ function DummyChatbotWidget() {
           boxShadow: '0 12px 28px rgba(0,0,0,0.18)',
           overflow: 'hidden',
           zIndex: 1700,
+          animation: 'chatPanelIn 0.2s ease both',
+          transformOrigin: 'bottom right',
         }}>
           <div style={{
             background: CHATBOT_LUZERN_BLUE,
@@ -1811,6 +1820,7 @@ function DummyChatbotWidget() {
             </button>
           </form>
         </div>
+        </>
       )}
 
       <button
@@ -2560,17 +2570,40 @@ function MapLayerSelectorControl({
     onOpacityChange: (next: number) => void,
   ) => (
     <div style={{ display: 'grid', gap: 6, padding: '8px 0', borderTop: '1px solid #f1f5f9' }}>
-      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#1a1a1a', cursor: 'pointer' }}>
-        <input
-          type="checkbox"
-          checked={checked}
-          onChange={(event) => onToggle(event.target.checked)}
-          style={{ accentColor: '#009fe3' }}
-        />
+      <label style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 13, fontWeight: 600, color: '#1a1a1a', cursor: 'pointer' }}>
         <span>{label}</span>
+        {/* Toggle switch */}
+        <span
+          role="switch"
+          aria-checked={checked}
+          onClick={() => onToggle(!checked)}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            width: 36,
+            height: 20,
+            borderRadius: 10,
+            background: checked ? '#009fe3' : '#d1d5db',
+            padding: 2,
+            cursor: 'pointer',
+            flexShrink: 0,
+            transition: 'background 0.18s ease',
+          }}
+        >
+          <span style={{
+            display: 'block',
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: '#fff',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+            transform: checked ? 'translateX(16px)' : 'translateX(0)',
+            transition: 'transform 0.18s ease',
+          }} />
+        </span>
       </label>
 
-      <div style={{ display: 'grid', gap: 4, paddingLeft: 24, opacity: checked ? 1 : 0.55 }}>
+      <div style={{ display: 'grid', gap: 4, paddingLeft: 0, opacity: checked ? 1 : 0.45 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 11, color: '#6b7280' }}>
           <span>Transparenz</span>
           <span>{Math.round(opacity * 100)}%</span>
@@ -2602,7 +2635,14 @@ function MapLayerSelectorControl({
       }}
     >
       {open && (
-        <div
+        <>
+          <style>{`
+            @keyframes layerPanelIn {
+              from { opacity: 0; transform: translateY(8px) scale(0.97); }
+              to   { opacity: 1; transform: translateY(0)   scale(1); }
+            }
+          `}</style>
+          <div
           style={{
             position: 'absolute',
             left: 0,
@@ -2614,6 +2654,8 @@ function MapLayerSelectorControl({
             boxShadow: '0 10px 24px rgba(0,0,0,0.16)',
             padding: '12px 12px 10px',
             zIndex: 1606,
+            animation: 'layerPanelIn 0.18s ease both',
+            transformOrigin: 'bottom left',
           }}
         >
           <div style={{ marginBottom: 6, fontSize: 13, fontWeight: 700, color: '#111827' }}>
@@ -2649,6 +2691,7 @@ function MapLayerSelectorControl({
             onChangeNutzungsplanungOpacity,
           )}
         </div>
+        </>
       )}
 
       <button

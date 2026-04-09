@@ -499,9 +499,19 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
 
       {loginOpen && (
         <>
+          <style>{`
+            @keyframes backdropIn {
+              from { opacity: 0; }
+              to   { opacity: 1; }
+            }
+            @keyframes modalIn {
+              from { opacity: 0; transform: translateY(16px) scale(0.97); }
+              to   { opacity: 1; transform: translateY(0)    scale(1); }
+            }
+          `}</style>
           <div
             onClick={() => setLoginOpen(false)}
-            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 2998 }}
+            style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.35)', zIndex: 2998, animation: 'backdropIn 0.2s ease both' }}
           />
 
           <div
@@ -520,6 +530,7 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
                 boxShadow: '0 18px 48px rgba(0,0,0,0.22)',
                 padding: 'clamp(14px, 3.5vw, 22px)',
                 fontFamily: 'Inter, system-ui, sans-serif',
+                animation: 'modalIn 0.22s ease both',
               }}
             >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12, marginBottom: 18, flexWrap: 'wrap' }}>
