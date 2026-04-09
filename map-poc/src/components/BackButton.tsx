@@ -14,7 +14,7 @@ export default function BackButton() {
         borderRadius: 8,
         boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
         padding: '8px 14px',
-        fontFamily: 'system-ui, sans-serif',
+        fontFamily: 'Inter, system-ui, sans-serif',
         fontSize: 13,
         fontWeight: 600,
         color: '#1a1a1a',

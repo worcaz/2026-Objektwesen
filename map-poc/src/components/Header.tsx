@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LuHouse, LuCircleUserRound, LuLayers3, LuLogOut } from 'react-icons/lu';
+import { LuHouse, LuLayers3, LuX } from 'react-icons/lu';
 
 const HEADER_BG = 'rgba(0, 159, 227, 0.9)';
 const AGOV_ACCESS_APP_ICON_URL = '/icons_agov.svg';
@@ -195,7 +195,7 @@ function BotAvatar({ seed, size = 22 }: { seed: string; size?: number }) {
   );
 }
 
-export default function Header() {
+export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () => void } = {}) {
   const [open, setOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -230,6 +230,7 @@ export default function Header() {
   }, [loginOpen, accountMenuOpen]);
 
   const openLoginModal = () => {
+    onAccountMenuOpen?.();
     setLoginOpen(true);
     setOpen(false);
     setAccountMenuOpen(false);
@@ -243,7 +244,11 @@ export default function Header() {
     setOpen(false);
 
     if (authUser) {
-      setAccountMenuOpen((current) => !current);
+      setAccountMenuOpen((current) => {
+        const next = !current;
+        if (next) onAccountMenuOpen?.();
+        return next;
+      });
       return;
     }
 
@@ -389,35 +394,40 @@ export default function Header() {
                   minWidth: 190,
                   background: '#fff',
                   border: '1px solid #e5e7eb',
-                  borderRadius: 12,
+                  borderRadius: 8,
                   boxShadow: '0 14px 28px rgba(0,0,0,0.18)',
                   padding: 6,
                   zIndex: 2001,
                 }}
               >
-                <div style={{ padding: '8px 10px', fontSize: 12, color: '#5d6b82', borderBottom: '1px solid #eef2f6', marginBottom: 6, wordBreak: 'break-word' }}>
-                  Angemeldet als <strong style={{ color: '#1a1a1a' }}>{authUser}</strong>
+                <div style={{ padding: '8px 10px 10px', borderBottom: '1px solid #eef2f6', marginBottom: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+                  <div style={{ fontSize: 14, color: '#5d6b82', wordBreak: 'break-word', lineHeight: 1.45 }}>
+                    Hallo <strong style={{ color: '#1a1a1a' }}>{authUser}</strong>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setAccountMenuOpen(false)}
+                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#5d6b82', lineHeight: 1, padding: 0, display: 'flex', alignItems: 'center', flexShrink: 0 }}
+                    aria-label="Account-Fenster schliessen"
+                  >
+                    <LuX size={18} />
+                  </button>
                 </div>
 
                 <button
                   type="button"
                   onClick={handleLogout}
                   style={{
-                    width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8,
                     border: 'none',
-                    borderRadius: 8,
-                    background: '#fff5f5',
-                    color: '#b23b36',
-                    fontWeight: 700,
-                    padding: '9px 10px',
+                    background: 'none',
+                    color: '#1f2937',
+                    fontWeight: 600,
+                    padding: '8px 12px',
                     cursor: 'pointer',
-                    fontSize: 13,
+                    fontSize: 12,
+                    textAlign: 'left',
                   }}
                 >
-                  <LuLogOut size={14} />
                   Logout
                 </button>
               </div>

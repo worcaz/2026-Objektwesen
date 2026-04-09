@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { LuDownload, LuFileText, LuGlobe, LuHouse, LuLayers3, LuLock, LuMail, LuPhone, LuSearch, LuX } from 'react-icons/lu';
+import { SlLayers } from 'react-icons/sl';
 import { PiCrane } from 'react-icons/pi';
 import {
   MapContainer,
@@ -42,6 +43,18 @@ const WMS_URL         = 'https://wfs.geodienste.ch/avc_0/deu';
 const WMS_LAYERS      = 'Liegenschaften';
 const WMS_ATTRIBUTION = '&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Amtliche Vermessung';
 
+const LUFTBILD_WMS_URL = 'https://wfs.geodienste.ch/luftbild/deu';
+const LUFTBILD_LAYERS = 'luftbild_ag,luftbild_lu,luftbild_zg,luftbild_zh';
+const LUFTBILD_ATTRIBUTION = '&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Luftbild AG/ZG/ZH/LU';
+
+const WALDGRENZEN_WMS_URL = 'https://wfs.geodienste.ch/npl_waldgrenzen_v1_2_0/deu';
+const WALDGRENZEN_LAYERS = 'daten';
+const WALDGRENZEN_ATTRIBUTION = '&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Statische Waldgrenzen';
+
+const DESKTOP_AUTO_CENTER_MIN_WIDTH = 1024;
+const INFO_PANEL_DESKTOP_WIDTH = 520;
+const INFO_PANEL_LEFT_MARGIN = 24;
+
 // ─── Vector layer styles ─────────────────────────────────────────────────────
 
 /** Default style for all parcel polygons. */
@@ -59,6 +72,27 @@ const VECTOR_HIGHLIGHT_STYLE: L.PathOptions = {
   fillColor:   '#e67e22',
   fillOpacity: 0.25,
 };
+
+function autoCenterParcelOnDesktop(map: L.Map, latlng: L.LatLng): boolean {
+  if (typeof window === 'undefined' || window.innerWidth < DESKTOP_AUTO_CENTER_MIN_WIDTH) return false;
+
+  const size = map.getSize();
+  const panelWidth = Math.min(INFO_PANEL_DESKTOP_WIDTH, Math.max(0, size.x - (INFO_PANEL_LEFT_MARGIN * 2)));
+  const visibleStartX = INFO_PANEL_LEFT_MARGIN + panelWidth;
+
+  if (panelWidth <= 0 || size.x <= visibleStartX + 120) return false;
+
+  const targetPoint = L.point(visibleStartX + ((size.x - visibleStartX) / 2), size.y / 2);
+  const currentPoint = map.latLngToContainerPoint(latlng);
+  const delta = currentPoint.subtract(targetPoint);
+
+  if (Math.abs(delta.x) < 6 && Math.abs(delta.y) < 6) return false;
+
+  const nextCenterPoint = map.project(map.getCenter(), map.getZoom()).add(delta);
+  const nextCenter = map.unproject(nextCenterPoint, map.getZoom());
+  map.panTo(nextCenter, { animate: true, duration: 0.35 });
+  return true;
+}
 
 // ─── Object info model & dummy data ──────────────────────────────────────────
 
@@ -1282,7 +1316,7 @@ function handleDummyPdfExport(info: ObjectInfo, isAuthenticated: boolean) {
         <meta charset="UTF-8" />
         <title>Grundstück ${escapeHtml(info.grundstueckNummer)} – Export</title>
         <style>
-          body { font-family: Arial, sans-serif; color: #111; padding: 24px; line-height: 1.45; }
+          body { font-family: Inter, system-ui, sans-serif; color: #111; padding: 24px; line-height: 1.45; }
           h1 { margin: 0 0 4px; font-size: 24px; }
           h2 { margin: 24px 0 8px; font-size: 15px; text-transform: uppercase; color: #4b5563; }
           h3 { margin: 0 0 4px; font-size: 13px; color: #374151; }
@@ -2295,11 +2329,12 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
 }
 
 function SearchPanel({
-  objectInfo, onSelect, onClose,
+  objectInfo, onSelect, onClose, onActivate,
 }: {
   objectInfo: ObjectInfo | null;
   onSelect:   (info: ObjectInfo) => void;
   onClose:    () => void;
+  onActivate?: () => void;
 }) {
   const [query,        setQuery]        = useState('');
   const [results,      setResults]      = useState<SearchResult[]>([]);
@@ -2326,7 +2361,10 @@ function SearchPanel({
         <input
           value={query}
           onChange={e => setQuery(e.target.value)}
-          onFocus={() => results.length > 0 && !hasPanel && setShowDropdown(true)}
+          onFocus={() => {
+            onActivate?.();
+            if (results.length > 0 && !hasPanel) setShowDropdown(true);
+          }}
           onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
           placeholder="Grundstück suchen…"
           style={{
@@ -2370,6 +2408,195 @@ function SearchPanel({
   );
 }
 
+function MapLayerSelectorControl({
+  showAmtlicheVermessung,
+  onToggleAmtlicheVermessung,
+  amtlicheVermessungOpacity,
+  onChangeAmtlicheVermessungOpacity,
+  showLuftbild,
+  onToggleLuftbild,
+  luftbildOpacity,
+  onChangeLuftbildOpacity,
+  showWaldgrenzen,
+  onToggleWaldgrenzen,
+  waldgrenzenOpacity,
+  onChangeWaldgrenzenOpacity,
+  open,
+  onOpenChange,
+}: {
+  showAmtlicheVermessung: boolean;
+  onToggleAmtlicheVermessung: (next: boolean) => void;
+  amtlicheVermessungOpacity: number;
+  onChangeAmtlicheVermessungOpacity: (next: number) => void;
+  showLuftbild: boolean;
+  onToggleLuftbild: (next: boolean) => void;
+  luftbildOpacity: number;
+  onChangeLuftbildOpacity: (next: number) => void;
+  showWaldgrenzen: boolean;
+  onToggleWaldgrenzen: (next: boolean) => void;
+  waldgrenzenOpacity: number;
+  onChangeWaldgrenzenOpacity: (next: number) => void;
+  open: boolean;
+  onOpenChange: (next: boolean) => void;
+}) {
+  const map = useMap();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const handleMapClick = (event: L.LeafletMouseEvent) => {
+      const originalTarget = event.originalEvent?.target;
+      if (originalTarget instanceof Node && containerRef.current?.contains(originalTarget)) {
+        return;
+      }
+
+      onOpenChange(false);
+    };
+
+    map.on('click', handleMapClick);
+
+    return () => {
+      map.off('click', handleMapClick);
+    };
+  }, [map, onOpenChange]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Only disable scroll propagation — disableClickPropagation would prevent React onClick from firing
+    L.DomEvent.disableScrollPropagation(container);
+
+    const stopPropagation = (event: Event) => {
+      event.stopPropagation();
+    };
+
+    // Do NOT include 'click' here — stopping click propagation at the container level prevents
+    // the native event from reaching React's root listener, so the button onClick would never fire.
+    const eventNames: Array<keyof HTMLElementEventMap> = ['pointerdown', 'mousedown', 'touchstart', 'wheel', 'dblclick'];
+    eventNames.forEach((eventName) => container.addEventListener(eventName, stopPropagation));
+
+    return () => {
+      eventNames.forEach((eventName) => container.removeEventListener(eventName, stopPropagation));
+    };
+  }, []);
+
+  const renderLayerRow = (
+    label: string,
+    checked: boolean,
+    onToggle: (next: boolean) => void,
+    opacity: number,
+    onOpacityChange: (next: number) => void,
+  ) => (
+    <div style={{ display: 'grid', gap: 6, padding: '8px 0', borderTop: '1px solid #f1f5f9' }}>
+      <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontWeight: 600, color: '#1a1a1a', cursor: 'pointer' }}>
+        <input
+          type="checkbox"
+          checked={checked}
+          onChange={(event) => onToggle(event.target.checked)}
+          style={{ accentColor: '#009fe3' }}
+        />
+        <span>{label}</span>
+      </label>
+
+      <div style={{ display: 'grid', gap: 4, paddingLeft: 24, opacity: checked ? 1 : 0.55 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, fontSize: 11, color: '#6b7280' }}>
+          <span>Transparenz</span>
+          <span>{Math.round(opacity * 100)}%</span>
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={100}
+          step={5}
+          value={Math.round(opacity * 100)}
+          onChange={(event) => onOpacityChange(Number(event.target.value) / 100)}
+          disabled={!checked}
+          style={{ width: '100%', accentColor: '#009fe3', cursor: checked ? 'pointer' : 'default' }}
+        />
+      </div>
+    </div>
+  );
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        left: 60,
+        bottom: 12,
+        zIndex: 1605,
+        pointerEvents: 'auto',
+        fontFamily: 'Inter, system-ui, sans-serif',
+      }}
+    >
+      {open && (
+        <div
+          style={{
+            position: 'absolute',
+            left: 0,
+            bottom: 46,
+            width: 'min(300px, calc(100vw - 84px))',
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            borderRadius: 12,
+            boxShadow: '0 10px 24px rgba(0,0,0,0.16)',
+            padding: '12px 12px 10px',
+            zIndex: 1606,
+          }}
+        >
+          <div style={{ marginBottom: 6, fontSize: 13, fontWeight: 700, color: '#111827' }}>
+            Karteninhalt
+          </div>
+
+          {renderLayerRow(
+            'Amtliche Vermessung',
+            showAmtlicheVermessung,
+            onToggleAmtlicheVermessung,
+            amtlicheVermessungOpacity,
+            onChangeAmtlicheVermessungOpacity,
+          )}
+          {renderLayerRow(
+            'Luftbild AG / ZG / ZH / LU',
+            showLuftbild,
+            onToggleLuftbild,
+            luftbildOpacity,
+            onChangeLuftbildOpacity,
+          )}
+          {renderLayerRow(
+            'Statische Waldgrenzen',
+            showWaldgrenzen,
+            onToggleWaldgrenzen,
+            waldgrenzenOpacity,
+            onChangeWaldgrenzenOpacity,
+          )}
+        </div>
+      )}
+
+      <button
+        type="button"
+        onClick={() => onOpenChange(!open)}
+        aria-label={open ? 'Karteninhalt schliessen' : 'Karteninhalt öffnen'}
+        title={open ? 'Karteninhalt schliessen' : 'Karteninhalt öffnen'}
+        style={{
+          width: 38,
+          height: 38,
+          border: '1px solid #e5e7eb',
+          borderRadius: 10,
+          background: '#fff',
+          boxShadow: '0 6px 18px rgba(0, 0, 0, 0.12)',
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          cursor: 'pointer',
+          color: '#111',
+        }}
+      >
+        {open ? <LuX size={18} /> : <SlLayers size={16} />}
+      </button>
+    </div>
+  );
+}
+
 // ─── ParcelLayer (must render inside MapContainer) ────────────────────────────
 //
 // This component manages the full lifecycle of the WFS vector parcel layer:
@@ -2395,9 +2622,10 @@ interface ParcelLayerProps {
   onLoadingChange:  (loading: boolean) => void;
   onError:          (msg: string | null) => void;
   onZoomChange:     (zoom: number) => void;
+  hasOpenInfoPanel: boolean;
 }
 
-function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange }: ParcelLayerProps) {
+function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel }: ParcelLayerProps) {
   const map = useMap();
 
   const [parcels,  setParcels]  = useState<FeatureCollection | null>(null);
@@ -2410,11 +2638,12 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange }
 
   // AbortController so panning quickly cancels the previous in-flight request.
   const abortRef = useRef<AbortController | null>(null);
+  const skipNextMoveLoadRef = useRef(false);
 
   // Keep the latest callback props in a ref so event handlers never go stale.
-  const cbRef = useRef({ onFeatureSelect, onLoadingChange, onError, onZoomChange });
+  const cbRef = useRef({ onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel });
   useEffect(() => {
-    cbRef.current = { onFeatureSelect, onLoadingChange, onError, onZoomChange };
+    cbRef.current = { onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel };
   });
 
   // Stable async function — recreated only when `map` changes (never in practice).
@@ -2426,7 +2655,6 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange }
 
     if (zoom < MIN_ZOOM_FOR_PARCELS) {
       setParcels(null);
-      onFeatureSelect(null);
       return;
     }
 
@@ -2438,7 +2666,6 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange }
     onLoadingChange(true);
     onError(null);
     highlightedRef.current = null; // clear stale ref before data changes
-    onFeatureSelect(null);
 
     try {
       const b = map.getBounds();
@@ -2468,7 +2695,13 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange }
   useEffect(() => {
     void loadParcels();
 
-    const handler = () => void loadParcels();
+    const handler = () => {
+      if (skipNextMoveLoadRef.current) {
+        skipNextMoveLoadRef.current = false;
+        return;
+      }
+      void loadParcels();
+    };
     map.on('moveend', handler);
     map.on('zoomend', handler);
 
@@ -2482,7 +2715,7 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange }
   // onEachFeature is called by react-leaflet for every feature at mount.
   // Uses refs for all external values so no stale closures occur.
   const onEachFeature = useCallback((feature: Feature, layer: L.Layer) => {
-    layer.on('click', () => {
+    layer.on('click', (event: L.LeafletMouseEvent) => {
       // Reset the previously highlighted polygon.
       if (highlightedRef.current) {
         highlightedRef.current.setStyle(VECTOR_STYLE);
@@ -2490,10 +2723,18 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange }
       // Highlight the clicked polygon.
       (layer as L.Path).setStyle(VECTOR_HIGHLIGHT_STYLE);
       highlightedRef.current = layer as L.Path;
+
+      if (!cbRef.current.hasOpenInfoPanel) {
+        const didAutoCenter = autoCenterParcelOnDesktop(map, event.latlng);
+        if (didAutoCenter) {
+          skipNextMoveLoadRef.current = true;
+        }
+      }
+
       // Notify parent to show the info box.
       cbRef.current.onFeatureSelect(feature.properties as RealParcelProps);
     });
-  }, []);
+  }, [map]);
 
   if (!parcels) return null;
 
@@ -2525,11 +2766,24 @@ export default function MapPageV2() {
   const [error,       setError]       = useState<string | null>(null);
   const [objectInfo,  setObjectInfo]  = useState<ObjectInfo | null>(null);
   const [currentZoom, setCurrentZoom] = useState(14);
+  const [isLayerSelectorOpen, setIsLayerSelectorOpen] = useState(false);
+  const [showAmtlicheVermessung, setShowAmtlicheVermessung] = useState(true);
+  const [showLuftbild, setShowLuftbild] = useState(false);
+  const [showWaldgrenzen, setShowWaldgrenzen] = useState(false);
+  const [amtlicheVermessungOpacity, setAmtlicheVermessungOpacity] = useState(0.7);
+  const [luftbildOpacity, setLuftbildOpacity] = useState(1);
+  const [waldgrenzenOpacity, setWaldgrenzenOpacity] = useState(0.9);
+
+  useEffect(() => {
+    if (objectInfo) {
+      setIsLayerSelectorOpen(false);
+    }
+  }, [objectInfo]);
 
   return (
     <div style={{ width: '100%', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
 
-      <Header />
+      <Header onAccountMenuOpen={() => setIsLayerSelectorOpen(false)} />
 
       <MapContainer center={MAP_CENTER} zoom={14} zoomControl={false} style={{ width: '100%', flex: 1 }}>
 
@@ -2538,23 +2792,67 @@ export default function MapPageV2() {
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
 
-        <WMSTileLayer
-          url={WMS_URL}
-          layers={WMS_LAYERS}
-          format="image/png"
-          transparent={true}
-          version="1.3.0"
-          opacity={0.7}
-          attribution={WMS_ATTRIBUTION}
-        />
+        {showAmtlicheVermessung && (
+          <WMSTileLayer
+            url={WMS_URL}
+            layers={WMS_LAYERS}
+            format="image/png"
+            transparent={true}
+            version="1.3.0"
+            opacity={amtlicheVermessungOpacity}
+            attribution={WMS_ATTRIBUTION}
+          />
+        )}
+
+        {showLuftbild && (
+          <WMSTileLayer
+            url={LUFTBILD_WMS_URL}
+            layers={LUFTBILD_LAYERS}
+            format="image/jpeg"
+            transparent={false}
+            version="1.3.0"
+            opacity={luftbildOpacity}
+            attribution={LUFTBILD_ATTRIBUTION}
+          />
+        )}
+
+        {showWaldgrenzen && (
+          <WMSTileLayer
+            url={WALDGRENZEN_WMS_URL}
+            layers={WALDGRENZEN_LAYERS}
+            format="image/png"
+            transparent={true}
+            version="1.3.0"
+            opacity={waldgrenzenOpacity}
+            attribution={WALDGRENZEN_ATTRIBUTION}
+          />
+        )}
 
         <ZoomControl position="bottomleft" />
+
+        <MapLayerSelectorControl
+          showAmtlicheVermessung={showAmtlicheVermessung}
+          onToggleAmtlicheVermessung={setShowAmtlicheVermessung}
+          amtlicheVermessungOpacity={amtlicheVermessungOpacity}
+          onChangeAmtlicheVermessungOpacity={setAmtlicheVermessungOpacity}
+          showLuftbild={showLuftbild}
+          onToggleLuftbild={setShowLuftbild}
+          luftbildOpacity={luftbildOpacity}
+          onChangeLuftbildOpacity={setLuftbildOpacity}
+          showWaldgrenzen={showWaldgrenzen}
+          onToggleWaldgrenzen={setShowWaldgrenzen}
+          waldgrenzenOpacity={waldgrenzenOpacity}
+          onChangeWaldgrenzenOpacity={setWaldgrenzenOpacity}
+          open={isLayerSelectorOpen}
+          onOpenChange={setIsLayerSelectorOpen}
+        />
 
         <ParcelLayer
           onFeatureSelect={props => setObjectInfo(props ? infoFromParcel(props) : null)}
           onLoadingChange={setLoading}
           onError={setError}
           onZoomChange={setCurrentZoom}
+          hasOpenInfoPanel={Boolean(objectInfo)}
         />
 
       </MapContainer>
@@ -2566,6 +2864,7 @@ export default function MapPageV2() {
         objectInfo={objectInfo}
         onSelect={setObjectInfo}
         onClose={() => setObjectInfo(null)}
+        onActivate={() => setIsLayerSelectorOpen(false)}
       />
 
       <DummyChatbotWidget />

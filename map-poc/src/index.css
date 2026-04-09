@@ -1,3 +1,4 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@100..900&display=swap');
 @import "tailwindcss";
 
 @layer base {
@@ -53,12 +54,106 @@
     margin: 0;
     width: 100%;
     min-height: 100%;
+    font-family: var(--font-sans);
   }
   body {
     background-color: hsl(var(--background));
     color: hsl(var(--foreground));
     font-family: var(--font-sans);
+    font-optical-sizing: auto;
     min-height: 100dvh;
     overflow-x: hidden;
   }
+
+  button, input, textarea, select {
+    font: inherit;
+  }
+}
+
+.leaflet-control-layers {
+  position: relative;
+  border: 1px solid #e5e7eb !important;
+  border-radius: 10px !important;
+  overflow: hidden;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12) !important;
+  font-family: var(--font-sans) !important;
+}
+
+.leaflet-control-layers * {
+  font-family: var(--font-sans) !important;
+}
+
+.leaflet-control-layers-toggle {
+  width: 38px !important;
+  height: 38px !important;
+  background-color: #fff !important;
+  background-image: none !important;
+  display: flex !important;
+  align-items: center;
+  justify-content: center;
+}
+
+.leaflet-custom-layers-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+}
+
+.leaflet-touch .leaflet-control-layers,
+.leaflet-touch .leaflet-control-layers-toggle {
+  border-radius: 10px !important;
+}
+
+.leaflet-control-layers-expanded {
+  padding: 36px 12px 10px !important;
+  min-width: 170px;
+}
+
+.leaflet-control-layers-expanded .leaflet-control-layers-toggle {
+  display: flex !important;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 22px !important;
+  height: 22px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.leaflet-control-layers-expanded .leaflet-control-layers-list {
+  font-size: 13px;
+  color: #1a1a1a;
+}
+
+.leaflet-control-layers-title {
+  margin: 0 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #111827;
+  letter-spacing: 0.01em;
+}
+
+.leaflet-control-layers-selector {
+  accent-color: #009fe3;
+}
+
+.leaflet-bottom.leaflet-left {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control {
+  clear: none;
+  margin: 0 0 12px 12px;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control-zoom {
+  order: 1;
+}
+
+.leaflet-bottom.leaflet-left .leaflet-control-layers {
+  order: 2;
 }

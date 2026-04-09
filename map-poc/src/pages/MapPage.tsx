@@ -99,7 +99,7 @@ export default function MapPage() {
             boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
             padding: '14px clamp(14px, 3vw, 22px)',
             width: 'min(320px, calc(100vw - 24px))',
-            fontFamily: 'system-ui, sans-serif',
+            fontFamily: 'Inter, system-ui, sans-serif',
             fontSize: 14,
             lineHeight: 1.8,
             color: '#1a1a1a',

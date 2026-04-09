@@ -14,7 +14,7 @@ export default function ListPage() {
       style={{
         minHeight: '100dvh',
         background: '#f5f6f8',
-        fontFamily: 'system-ui, sans-serif',
+        fontFamily: 'Inter, system-ui, sans-serif',
       }}
     >
       <Header />
