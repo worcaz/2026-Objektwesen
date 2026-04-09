@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { LuDownload, LuFileText, LuGlobe, LuHouse, LuLayers3, LuLock, LuMail, LuMinus, LuPhone, LuPlus, LuSearch, LuX } from 'react-icons/lu';
+import { TbLoaderQuarter } from 'react-icons/tb';
 import { SlLayers } from 'react-icons/sl';
 import { PiCrane } from 'react-icons/pi';
 import {
@@ -958,7 +959,9 @@ function LoadingOverlay() {
       padding: '12px 14px',
       fontSize: 13, color: '#444', display: 'flex', alignItems: 'center', gap: 10,
     }}>
-      <span style={{ fontSize: 18 }}>⏳</span> Loading parcels…
+      <style>{`@keyframes spinLoader { to { transform: rotate(360deg); } }`}</style>
+      <TbLoaderQuarter size={18} style={{ animation: 'spinLoader 0.75s linear infinite', flexShrink: 0 }} />
+      Lade Parzellen…
     </div>
   );
 }
