@@ -389,6 +389,13 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
             </button>
 
             {authUser && accountMenuOpen && (
+              <>
+                <style>{`
+                  @keyframes accountMenuIn {
+                    from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+                    to   { opacity: 1; transform: translateY(0)    scale(1); }
+                  }
+                `}</style>
               <div
                 style={{
                   position: 'absolute',
@@ -401,6 +408,8 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
                   boxShadow: '0 14px 28px rgba(0,0,0,0.18)',
                   padding: 6,
                   zIndex: 2001,
+                  animation: 'accountMenuIn 0.18s ease both',
+                  transformOrigin: 'top right',
                 }}
               >
                 <div style={{ padding: '8px 10px 10px', borderBottom: '1px solid #eef2f6', marginBottom: 6, display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
@@ -429,11 +438,14 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
                     cursor: 'pointer',
                     fontSize: 12,
                     textAlign: 'left',
+                    width: '100%',
+                    display: 'block',
                   }}
                 >
                   Logout
                 </button>
               </div>
+              </>
             )}
           </div>
         </div>
