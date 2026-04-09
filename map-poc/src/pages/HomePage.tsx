@@ -14,18 +14,18 @@ interface MockupEntry {
 const MOCKUPS: MockupEntry[] = [
   {
     path: '/map',
-    title: 'Objektwesen v0.1 Mockup',
-    description: 'Basis Mockup.',
-    icon: <LuLayers3 size={28} strokeWidth={1.9} />,
-    status: 'ready',
+    title: 'First Draft v0.1',
+    description: 'Grundlagender Mockup mit Leaflet-Karte, Klick-Interaktion und Popup. Noch ohne WMS/WFS.',
+        icon: <LuFileText size={28} strokeWidth={1.9} />,
+    status: 'wip',
   },
   {
     path: '/mapv2',
     title: 'Objektwesen v0.2 Mockup',
     description:
-      'Interaktive Karte mit WMS-Katasterebene und WFS-Vektordaten. Parzellen anklicken für Attributinformationen.',
-    icon: <LuFileText size={28} strokeWidth={1.9} />,
-    status: 'wip',
+      'Interaktive UX-Mockup mit Leaflet, inklusive Karteninteraktion, Seitenpanel und responsivem Layout.',
+icon: <LuLayers3 size={28} strokeWidth={1.9} />,
+    status: 'ready',
   },
 ];
 
