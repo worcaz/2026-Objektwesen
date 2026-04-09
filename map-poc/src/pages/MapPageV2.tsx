@@ -1908,85 +1908,108 @@ function CollapsibleBauprojekte({ entries }: { entries: ProjectInfo[] }) {
         <span style={{ color: '#3388ff', fontWeight: 600, fontSize: 12 }}>{open ? '▲ zuklappen' : `▼ ${entries.length} Einträge`}</span>
       </div>
       {open && (
-        <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', overflowX: 'auto' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 420 }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
-              <span>Dossier</span>
-              <span>Bezeichnung</span>
-              <span style={{ textAlign: 'right' }}>Status</span>
-            </div>
-            {entries.map((p, i) => {
-              const c = STATUS_BADGE[p.status] ?? { bg: '#eee', color: '#555' };
-              const isExpanded = expandedDossier === p.dossierNr;
-              return (
-                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '2px 0' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 12, alignItems: 'baseline' }}>
-                    <button
-                      type="button"
-                      onClick={() => setExpandedDossier((value) => value === p.dossierNr ? null : p.dossierNr)}
-                      aria-expanded={isExpanded}
-                      style={{
-                        border: 'none',
-                        background: 'none',
-                        padding: 0,
-                        margin: 0,
-                        color: '#3388ff',
-                        fontVariantNumeric: 'tabular-nums',
-                        whiteSpace: 'nowrap',
-                        textAlign: 'left',
-                        cursor: 'pointer',
-                        textDecoration: 'underline',
-                        fontSize: 12,
-                        fontWeight: 600,
-                      }}
-                      title="Details anzeigen"
-                    >
-                      {p.dossierNr}
-                    </button>
-                    <span style={{ color: '#1a1a1a' }}>{p.bezeichnung}</span>
-                    <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap', justifySelf: 'end' }}>{p.status}</span>
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
+          {entries.map((p, i) => {
+            const c = STATUS_BADGE[p.status] ?? { bg: '#eee', color: '#555' };
+            const isExpanded = expandedDossier === p.dossierNr;
+
+            return (
+              <div
+                key={i}
+                style={{
+                  border: isExpanded ? '1px solid #bcd8f5' : '1px solid #e5e7eb',
+                  borderRadius: 12,
+                  background: '#f9fafb',
+                  boxShadow: isExpanded ? '0 8px 20px rgba(51, 136, 255, 0.08)' : 'none',
+                  overflow: 'hidden',
+                }}
+              >
+                <div style={{ padding: '11px 12px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ minWidth: 0, display: 'grid', gap: 3 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                        Bauprojekt {i + 1}
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setExpandedDossier((value) => value === p.dossierNr ? null : p.dossierNr)}
+                        aria-expanded={isExpanded}
+                        style={{
+                          border: 'none',
+                          background: 'none',
+                          padding: 0,
+                          margin: 0,
+                          color: '#3388ff',
+                          fontVariantNumeric: 'tabular-nums',
+                          textAlign: 'left',
+                          cursor: 'pointer',
+                          fontSize: 13,
+                          fontWeight: 700,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          flexWrap: 'wrap',
+                        }}
+                        title="Details anzeigen"
+                      >
+                        <span aria-hidden="true" style={{ fontSize: 11 }}>{isExpanded ? '▼' : '▶'}</span>
+                        <span style={{ textDecoration: 'underline' }}>Dossier {p.dossierNr}</span>
+                      </button>
+                    </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: c.bg, color: c.color, whiteSpace: 'nowrap' }}>
+                        {p.status}
+                      </span>
+                      <span style={{ fontSize: 11, color: '#6b7280' }}>
+                        {isExpanded ? 'Details sichtbar' : 'Details anzeigen'}
+                      </span>
+                    </div>
                   </div>
 
-                  {isExpanded && (
-                    <div style={{
-                      border: '1px solid #e5e7eb',
-                      borderRadius: 10,
-                      background: '#f8fafc',
-                      padding: '10px 12px',
-                      display: 'grid',
-                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
-                      gap: '10px 12px',
-                    }}>
-                      <div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>Amtliche Baudossier-Nr.</div>
-                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.amtlicheBaudossierNr || '—'}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>Eidg. Projektidentifikator</div>
-                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.eidgProjektidentifikator || '—'}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>Anzahl projektierte Wohnungen</div>
-                        <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{p.anzahlProjektierteWohnungen || '—'}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>Art der Arbeiten</div>
-                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.artDerArbeiten || '—'}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>Art der Bauwerke</div>
-                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.artDerBauwerke || '—'}</div>
-                      </div>
-                      <div>
-                        <div style={{ fontSize: 11, color: '#6b7280' }}>Typ der Bauwerke</div>
-                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.typDerBauwerke || '—'}</div>
-                      </div>
-                    </div>
-                  )}
+                  <div style={{ color: '#1a1a1a', lineHeight: 1.45, wordBreak: 'break-word' }}>
+                    {p.bezeichnung}
+                  </div>
                 </div>
-              );
-            })}
-          </div>
+
+                {isExpanded && (
+                  <div style={{
+                    borderTop: '1px solid #dbe7f3',
+                    background: '#f1f7fd',
+                    padding: '10px 12px 12px',
+                    display: 'grid',
+                    gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                    gap: '10px 12px',
+                  }}>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Amtliche Baudossier-Nr.</div>
+                      <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.amtlicheBaudossierNr || '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Eidg. Projektidentifikator</div>
+                      <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.eidgProjektidentifikator || '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Anzahl projektierte Wohnungen</div>
+                      <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{p.anzahlProjektierteWohnungen || '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Art der Arbeiten</div>
+                      <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.artDerArbeiten || '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Art der Bauwerke</div>
+                      <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.artDerBauwerke || '—'}</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 11, color: '#6b7280' }}>Typ der Bauwerke</div>
+                      <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.typDerBauwerke || '—'}</div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
