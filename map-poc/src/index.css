@@ -48,6 +48,17 @@
 }
 
 @layer base {
-  * { border-color: hsl(var(--border)); font-family: inherit; }
-  body { background-color: hsl(var(--background)); color: hsl(var(--foreground)); font-family: var(--font-sans); }
+  *, *::before, *::after { box-sizing: border-box; border-color: hsl(var(--border)); font-family: inherit; }
+  html, body, #root {
+    margin: 0;
+    width: 100%;
+    min-height: 100%;
+  }
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
 }

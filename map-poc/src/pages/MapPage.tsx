@@ -69,7 +69,7 @@ export default function MapPage() {
   }
 
   return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ width: '100%', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
       <Header />
 
       <MapContainer
@@ -84,42 +84,43 @@ export default function MapPage() {
 
         <ClickHandler onMapClick={handleMapClick} />
 
-        {parcel && (
-          <Marker position={[parcel.lat, parcel.lng]} />
-        )}
+        {parcel && <Marker position={[parcel.lat, parcel.lng]} />}
       </MapContainer>
 
-      {/* Floating info box */}
       {parcel && (
-        <div style={{
-          position:     'fixed',
-          bottom:       24,
-          left:         24,
-          zIndex:       1000,
-          background:   '#fff',
-          borderRadius: 10,
-          boxShadow:    '0 4px 20px rgba(0,0,0,0.15)',
-          padding:      '18px 22px',
-          minWidth:     240,
-          fontFamily:   'system-ui, sans-serif',
-          fontSize:     14,
-          lineHeight:   1.8,
-          color:        '#1a1a1a',
-        }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+        <div
+          style={{
+            position: 'fixed',
+            bottom: 'clamp(12px, 3vw, 24px)',
+            left: 'clamp(12px, 3vw, 24px)',
+            zIndex: 1000,
+            background: '#fff',
+            borderRadius: 10,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
+            padding: '14px clamp(14px, 3vw, 22px)',
+            width: 'min(320px, calc(100vw - 24px))',
+            fontFamily: 'system-ui, sans-serif',
+            fontSize: 14,
+            lineHeight: 1.8,
+            color: '#1a1a1a',
+          }}
+        >
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, marginBottom: 10 }}>
             <strong style={{ fontSize: 15 }}>Parzelle #{parcel.parcelId}</strong>
             <button
               onClick={() => setParcel(null)}
               style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 18, color: '#888', lineHeight: 1 }}
               aria-label="Schliessen"
-            >×</button>
+            >
+              ×
+            </button>
           </div>
 
           <div style={{ color: '#555', fontSize: 12, marginBottom: 10 }}>
             {parcel.lat.toFixed(5)}, {parcel.lng.toFixed(5)}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'auto 1fr', gap: '2px 16px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, auto) minmax(0, 1fr)', gap: '2px 12px' }}>
             <span style={{ color: '#888' }}>Eigentümer</span>
             <span style={{ fontWeight: 600 }}>{parcel.owner}</span>
             <span style={{ color: '#888' }}></span>

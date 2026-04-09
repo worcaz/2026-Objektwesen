@@ -18,7 +18,7 @@ import {
   buildMockFeatures,
   MIN_ZOOM_FOR_PARCELS,
 } from '../wfsService';
-import Header, { AUTH_EVENT_NAME, AUTH_STORAGE_KEY } from '../components/Header';
+import Header, { AUTH_EVENT_NAME, AUTH_OPEN_LOGIN_EVENT, AUTH_STORAGE_KEY } from '../components/Header';
 
 // ─── Fix Leaflet's default marker icons broken by Vite's bundler ──────────────
 import markerIcon2x from 'leaflet/dist/images/marker-icon-2x.png';
@@ -62,8 +62,30 @@ const VECTOR_HIGHLIGHT_STYLE: L.PathOptions = {
 
 // ─── Object info model & dummy data ──────────────────────────────────────────
 
-interface BuildingInfo   { nr: string; egid: string; bezeichnung: string; status: string; }
-interface ProjectInfo    { dossierNr: string; bezeichnung: string; status: string; }
+interface BuildingInfo {
+  nr: string;
+  versicherungsNr: string;
+  baujahrBauperiode: string;
+  gebaeudekategorie: string;
+  gebaeudestatus: string;
+  adresse: string;
+  koordinaten: string;
+  egid: string;
+  verwaltungGebaeude: string;
+  versicherungswert: string;
+  anzahlWohnungen: string;
+}
+interface ProjectInfo {
+  dossierNr: string;
+  bezeichnung: string;
+  status: string;
+  amtlicheBaudossierNr: string;
+  eidgProjektidentifikator: string;
+  anzahlProjektierteWohnungen: string;
+  artDerArbeiten: string;
+  artDerBauwerke: string;
+  typDerBauwerke: string;
+}
 interface BodenbedeckungEntry { label: string; area: string; }
 interface ZonenplanEntry    { zonentyp: string; gemeinde: string; flaeche: string; anteil: string; }
 interface ContactInfo {
@@ -75,11 +97,30 @@ interface ContactInfo {
   email: string;
   website: string;
 }
+interface OwnerAddress {
+  label: string;
+  value: string;
+}
+interface OwnerParty {
+  name: string;
+  addresses: OwnerAddress[];
+}
+interface OwnershipShareEntry {
+  grundstueck: string;
+  anteil?: string;
+  eigentumsform: string;
+  parteien: OwnerParty[];
+}
+interface OwnershipInfo {
+  eigentumsform: string;
+  parteien: OwnerParty[];
+  beteiligungen?: OwnershipShareEntry[];
+}
 interface ObjectInfo {
   grundstueckNummer: string;
   egrid:             string;
   grundstueckArt:    string;
-  eigentuemer:       string;
+  eigentuemer:       OwnershipInfo;
   gemeinde:          string;
   bfsNr:             string;
   grundbuchNr:       string;
@@ -106,27 +147,98 @@ function hashStr(s: string): number {
   return Math.abs(h);
 }
 
-const DUMMY_OWNERS: string[] = [
-  'Thomas Müller, Bahnhofstrasse 12, 8001 Zürich, ZH',
-  'Béatrice Favre, Rue du Rhône 45, 1204 Genève, GE',
-  'Marco Bernasconi, Via Nassa 7, 6900 Lugano, TI',
-  'Sarah Meier, Hauptgasse 21, 3011 Bern, BE',
-  'Lukas Schmid, Pilatusstrasse 3, 6003 Luzern, LU',
-  'Elena Rossi, Corso San Gottardo 112, 6830 Chiasso, TI',
-  'Jean-Pierre Dubois, Avenue du Théâtre 18, 1005 Lausanne, VD',
-  'Heidi Ammann, Poststrasse 5, 9000 St. Gallen, SG',
-  'Reto Zürcher, Rathausplatz 2, 8400 Winterthur, ZH',
-  'Chantal Lefebvre, Grand-Rue 34, 1700 Fribourg, FR',
-  'Urs Brunner, Hinterdorfstrasse 14, 3920 Zermatt, VS',
-  'Karin Widmer, Marktplatz 8, 4051 Basel, BS',
-  'Fabio Moretti, Via dal Bagn 22, 7500 St. Moritz, GR',
-  'Isabelle Steiner, Chemin des Fleurs 9, 2000 Neuchâtel, NE',
-  'Stefan Gerber, Aareweg 56, 3600 Thun, BE',
-  'Monika Egger, Kirchgasse 10, 6300 Zug, ZG',
-  'Pascal Mercier, Rue de la Gare 27, 1950 Sion, VS',
-  'Daniela Frei, Sonnenweg 31, 8640 Rapperswil-Jona, SG',
-  'Markus Wicki, Ringstrasse 4, 7000 Chur, GR',
-  'Sophie Girard, Quai de la Gruère 15, 2800 Delémont, JU',
+const DUMMY_OWNERS: OwnershipInfo[] = [
+  {
+    eigentumsform: 'Überbauung mit mehreren Miteigentumsanteilen',
+    parteien: [],
+    beteiligungen: [
+      {
+        grundstueck: 'Kriens 13799',
+        anteil: '150/1000',
+        eigentumsform: 'Alleineigentum',
+        parteien: [{ name: 'sovento AG', addresses: [{ label: 'Rechtsdomizil', value: 'Habsburgerstrasse 22, 6003 Luzern, Schweiz' }] }],
+      },
+      {
+        grundstueck: 'Kriens 53838',
+        anteil: '1/12',
+        eigentumsform: 'Alleineigentum',
+        parteien: [{ name: 'sovento AG', addresses: [{ label: 'Rechtsdomizil', value: 'Habsburgerstrasse 22, 6003 Luzern, Schweiz' }] }],
+      },
+      {
+        grundstueck: 'Kriens 53842',
+        anteil: '1/12',
+        eigentumsform: 'Alleineigentum',
+        parteien: [{ name: 'sovento AG', addresses: [{ label: 'Rechtsdomizil', value: 'Habsburgerstrasse 22, 6003 Luzern, Schweiz' }] }],
+      },
+      {
+        grundstueck: 'Kriens 13806',
+        anteil: '6/1000',
+        eigentumsform: 'Alleineigentum',
+        parteien: [{ name: 'sovento AG', addresses: [{ label: 'Rechtsdomizil', value: 'Habsburgerstrasse 22, 6003 Luzern, Schweiz' }] }],
+      },
+    ],
+  },
+  {
+    eigentumsform: 'Gesamteigentum, einfache Gesellschaft',
+    parteien: [
+      {
+        name: 'Müller Eva',
+        addresses: [{ label: 'Wohnadresse', value: 'Holengraben 50, 5722 Gränichen, Schweiz' }],
+      },
+      {
+        name: 'Müller Hans',
+        addresses: [{ label: 'Wohnadresse', value: 'Holengraben 50, 5722 Gränichen, Schweiz' }],
+      },
+    ],
+  },
+  {
+    eigentumsform: 'Alleineigentum',
+    parteien: [
+      {
+        name: 'Ammann Gerhard',
+        addresses: [{ label: 'Wohnadresse', value: 'Tannerstrasse 26, 5000 Aarau, Schweiz' }],
+      },
+    ],
+  },
+  {
+    eigentumsform: 'Alleineigentum',
+    parteien: [
+      {
+        name: '4sports & Entertainment AG, Zug (UID: CHE 110.554.246)',
+        addresses: [{ label: 'Rechtsdomizil', value: 'Chamerstrasse 176, 6300 Zug, Schweiz' }],
+      },
+    ],
+  },
+  {
+    eigentumsform: 'Alleineigentum',
+    parteien: [
+      {
+        name: 'Schmidt Tim',
+        addresses: [
+          { label: 'Zustelladresse', value: '5001 Aarau 1, Schweiz' },
+          { label: 'Wohnadresse', value: 'Hauptstrasse 11, 5000 Aarau, Schweiz' },
+        ],
+      },
+    ],
+  },
+  {
+    eigentumsform: 'Alleineigentum',
+    parteien: [
+      {
+        name: 'Manor AG, Basel (UID: CHE 105.901.193)',
+        addresses: [{ label: 'Rechtsdomizil', value: 'Rebgasse 34, 4058 Basel, Schweiz' }],
+      },
+    ],
+  },
+  {
+    eigentumsform: 'Alleineigentum',
+    parteien: [
+      {
+        name: 'Zumbach-Immobilien AG, Aarau (UID: CHE 115.010.404)',
+        addresses: [{ label: 'Zustelladresse', value: 'c/o Jost Zumbach, Liebeggerweg 13, 5000 Aarau, Schweiz' }],
+      },
+    ],
+  },
 ];
 const DUMMY_GEMEINDEN: Array<{ name: string; bfs: string; gb: string }> = [
   { name: 'Adligenswil', bfs: '1051', gb: 'GB Adligenswil' },
@@ -244,56 +356,382 @@ const DUMMY_ARTEN: string[] = [
   'Miteigentumsanteil an Grundstück',
 ];
 const DUMMY_BUILDINGS: BuildingInfo[] = [
-  { nr: '609.140',    egid: '192557',     bezeichnung: 'Velounterstand',            status: 'abgebrochen' },
-  { nr: '609.140a',   egid: '191911198',  bezeichnung: 'Carport',                   status: 'bestehend'   },
-  { nr: 'n.v.',       egid: '504085015',  bezeichnung: 'Stall',                     status: 'bestehend'   },
-  { nr: '312.005',    egid: '200341872',  bezeichnung: 'Wohnhaus',                  status: 'bestehend'   },
-  { nr: '415.002',    egid: '300118540',  bezeichnung: 'Nebengebäude',              status: 'abgebrochen' },
-  { nr: 'n.v.',       egid: '601234567',  bezeichnung: 'Garage',                    status: 'bestehend'   },
-  { nr: '312.005a',   egid: '200341873',  bezeichnung: 'Gartenhaus',                status: 'bestehend'   },
-  { nr: '120.010',    egid: '100552341',  bezeichnung: 'Mehrfamilienhaus',          status: 'projektierte' },
-  { nr: 'n.v.',       egid: '702334110',  bezeichnung: 'Schopf',                    status: 'bestehend'   },
-  { nr: '440.001',    egid: '400112233',  bezeichnung: 'Ökonomiegebäude',           status: 'bestehend'   },
-  { nr: 'n.v.',       egid: '800456123',  bezeichnung: 'Velounterstand',            status: 'geplant'     },
-  { nr: '15.003',     egid: '900223344',  bezeichnung: 'Gewerbehalle',              status: 'bestehend'   },
-  { nr: '609.141',    egid: '192558',     bezeichnung: 'Remise',                    status: 'abgebrochen' },
-  { nr: '312.006',    egid: '200341890',  bezeichnung: 'Einfamilienhaus',           status: 'im Bau'      },
-  { nr: 'n.v.',       egid: '505050505',  bezeichnung: 'Stützmauer/Unterstand',     status: 'bestehend'   },
-  { nr: '88.002',     egid: '300445566',  bezeichnung: 'Lagerhaus',                 status: 'bestehend'   },
-  // Weitere Ergänzungen
-  { nr: '312.005b',   egid: '200341874',  bezeichnung: 'Garage',                    status: 'bestehend'   },
-  { nr: 'n.v.',       egid: '910223355',  bezeichnung: 'Schwimmbad / Pool',         status: 'bestehend'   },
-  { nr: '120.011',    egid: '100552342',  bezeichnung: 'Mehrfamilienhaus',          status: 'projektierte' },
-  { nr: '120.012',    egid: '100552343',  bezeichnung: 'Einstellhalle',             status: 'projektierte' },
-  { nr: '55.001',     egid: '440556112',  bezeichnung: 'Wohnhaus',                  status: 'bestehend'   },
-  { nr: '55.001a',    egid: '440556113',  bezeichnung: 'Schopf',                    status: 'bestehend'   },
-  { nr: 'n.v.',       egid: '101122334',  bezeichnung: 'Luft-Wasser-Wärmepumpe',     status: 'bestehend'   },
-  { nr: '710.001',    egid: '880112233',  bezeichnung: 'Werkstatt',                 status: 'bestehend'   },
-  { nr: '710.001a',   egid: '880112234',  bezeichnung: 'Anbau Werkstatt',           status: 'im Bau'      },
-  { nr: '221.040',    egid: '770665544',  bezeichnung: 'Einfamilienhaus',           status: 'bestehend'   },
-  { nr: '221.040a',   egid: '770665545',  bezeichnung: 'Carport',                   status: 'bestehend'   },
-  { nr: 'n.v.',       egid: '123123123',  bezeichnung: 'Gartenhaus',                status: 'abgebrochen' },
-  { nr: '900.005',    egid: '990887766',  bezeichnung: 'Trafostation',              status: 'bestehend'   },
-  { nr: 'n.v.',       egid: '556677889',  bezeichnung: 'Velounterstand',            status: 'bestehend'   },
-  { nr: '102.001',    egid: '110220330',  bezeichnung: 'Wohn- und Geschäftshaus',    status: 'bestehend'   }
+  {
+    nr: '609.140',
+    versicherungsNr: 'GVL-447821',
+    baujahrBauperiode: '1958',
+    gebaeudekategorie: 'Wohnhaus',
+    gebaeudestatus: 'bestehend',
+    adresse: 'Sonnenbergstrasse 18, 6005 Luzern',
+    koordinaten: '2’666’412 / 1’211’084',
+    egid: '192557',
+    verwaltungGebaeude: 'Livit AG, Luzern',
+    versicherungswert: "CHF 1'280'000",
+    anzahlWohnungen: '1',
+  },
+  {
+    nr: '609.140a',
+    versicherungsNr: 'GVL-447822',
+    baujahrBauperiode: '1987',
+    gebaeudekategorie: 'Carport / Velounterstand',
+    gebaeudestatus: 'bestehend',
+    adresse: 'Sonnenbergstrasse 18a, 6005 Luzern',
+    koordinaten: '2’666’428 / 1’211’076',
+    egid: '191911198',
+    verwaltungGebaeude: 'Eigentümerschaft vor Ort',
+    versicherungswert: "CHF 95'000",
+    anzahlWohnungen: '0',
+  },
+  {
+    nr: 'n.v.',
+    versicherungsNr: 'GVL-558901',
+    baujahrBauperiode: '1972-1975',
+    gebaeudekategorie: 'Ökonomiegebäude / Stall',
+    gebaeudestatus: 'bestehend',
+    adresse: 'Hostrich 4, 6010 Kriens',
+    koordinaten: '2’664’915 / 1’208’644',
+    egid: '504085015',
+    verwaltungGebaeude: 'Landgut Hostrich AG',
+    versicherungswert: "CHF 420'000",
+    anzahlWohnungen: '0',
+  },
+  {
+    nr: '312.005',
+    versicherungsNr: 'GVL-300214',
+    baujahrBauperiode: '2008',
+    gebaeudekategorie: 'Einfamilienhaus',
+    gebaeudestatus: 'bestehend',
+    adresse: 'Seeblickweg 12, 6045 Meggen',
+    koordinaten: '2’671’103 / 1’214’552',
+    egid: '200341872',
+    verwaltungGebaeude: 'Privatverwaltung Meier',
+    versicherungswert: "CHF 1'650'000",
+    anzahlWohnungen: '1',
+  },
+  {
+    nr: '415.002',
+    versicherungsNr: 'GVL-118540',
+    baujahrBauperiode: '1964',
+    gebaeudekategorie: 'Nebengebäude',
+    gebaeudestatus: 'abgebrochen',
+    adresse: 'Mülimatte 6, 6204 Sempach',
+    koordinaten: '2’655’441 / 1’220’910',
+    egid: '300118540',
+    verwaltungGebaeude: 'Gemeindeverwaltung Sempach',
+    versicherungswert: "CHF 210'000",
+    anzahlWohnungen: '3',
+  },
+  {
+    nr: '120.010',
+    versicherungsNr: 'GVL-552341',
+    baujahrBauperiode: '2024-2025',
+    gebaeudekategorie: 'Mehrfamilienhaus',
+    gebaeudestatus: 'projektiert',
+    adresse: 'Allmendpark 3, 6020 Emmenbrücke',
+    koordinaten: '2’663’087 / 1’216’233',
+    egid: '100552341',
+    verwaltungGebaeude: 'Wincasa AG, Luzern',
+    versicherungswert: "CHF 8'400'000",
+    anzahlWohnungen: '12',
+  },
+  {
+    nr: '710.001',
+    versicherungsNr: 'GVL-880112',
+    baujahrBauperiode: '1999-2001',
+    gebaeudekategorie: 'Werkstatt',
+    gebaeudestatus: 'bestehend',
+    adresse: 'Industriestrasse 9, 6210 Sursee',
+    koordinaten: '2’648’224 / 1’227’404',
+    egid: '880112233',
+    verwaltungGebaeude: 'Arealverwaltung Sursee AG',
+    versicherungswert: "CHF 2'950'000",
+    anzahlWohnungen: '0',
+  },
+  {
+    nr: '710.001a',
+    versicherungsNr: 'GVL-880234',
+    baujahrBauperiode: '2025-2026',
+    gebaeudekategorie: 'Anbau Werkstatt',
+    gebaeudestatus: 'im Bau',
+    adresse: 'Industriestrasse 9a, 6210 Sursee',
+    koordinaten: '2’648’236 / 1’227’395',
+    egid: '880112234',
+    verwaltungGebaeude: 'Arealverwaltung Sursee AG',
+    versicherungswert: "CHF 1'100'000",
+    anzahlWohnungen: '0',
+  },
+  {
+    nr: '221.040',
+    versicherungsNr: 'GVL-665544',
+    baujahrBauperiode: '2012',
+    gebaeudekategorie: 'Einfamilienhaus',
+    gebaeudestatus: 'bestehend',
+    adresse: 'Gütschhöhe 21, 6003 Luzern',
+    koordinaten: '2’665’081 / 1’212’638',
+    egid: '770665544',
+    verwaltungGebaeude: 'Privatverwaltung Hodel',
+    versicherungswert: "CHF 1'780'000",
+    anzahlWohnungen: '1',
+  },
+  {
+    nr: '900.005',
+    versicherungsNr: 'GVL-887766',
+    baujahrBauperiode: '1981-1983',
+    gebaeudekategorie: 'Trafostation',
+    gebaeudestatus: 'bestehend',
+    adresse: 'Stationsweg 2, 6030 Ebikon',
+    koordinaten: '2’669’310 / 1’213’887',
+    egid: '990887766',
+    verwaltungGebaeude: 'CKW AG',
+    versicherungswert: "CHF 380'000",
+    anzahlWohnungen: '0',
+  },
+  {
+    nr: '102.001',
+    versicherungsNr: 'GVL-220330',
+    baujahrBauperiode: '1911-2018',
+    gebaeudekategorie: 'Wohn- und Geschäftshaus',
+    gebaeudestatus: 'bestehend',
+    adresse: 'Bahnhofstrasse 14, 6003 Luzern',
+    koordinaten: '2’665’902 / 1’211’911',
+    egid: '110220330',
+    verwaltungGebaeude: 'Privera AG, Luzern',
+    versicherungswert: "CHF 6'250'000",
+    anzahlWohnungen: '6',
+  }
 ];
 const DUMMY_PROJECTS: ProjectInfo[] = [
-  { dossierNr: '2025-0660', bezeichnung: 'Umnutzung Gebäude Nr. 134a zu Abstell- und Lagerfläche für Malerbetrieb (nachträglich) und Einbau Spaltanlage in Gebäude Nr. 134d', status: 'Leitentscheid' },
-  { dossierNr: '2022-4426', bezeichnung: 'Neubau einer Niederspannungsrohranlage und Abbruch der bestehenden Freileitung', status: 'Abgeschlossen' },
-  { dossierNr: '2017-1977', bezeichnung: 'Anbau Garage + Holzschnitzellager', status: 'Abgeschlossen' },
-  { dossierNr: '2026-0572', bezeichnung: 'Einbau Wohnung', status: 'Leitentscheid' },
-  { dossierNr: '2024-0637', bezeichnung: 'Fassadensanierung und Anbau Balkone', status: 'Abgeschlossen' },
-  // Neue Projekte:
-  { dossierNr: '2026-0812', bezeichnung: 'Installation einer Photovoltaikanlage auf der Südwestdachfläche und Ersatz der Ölheizung durch eine Luft-Wasser-Wärmepumpe', status: 'In Prüfung' },
-  { dossierNr: '2025-1104', bezeichnung: 'Neubau Einfamilienhaus mit integrierter Doppelgarage und Umgebungsgestaltung', status: 'Leitentscheid' },
-  { dossierNr: '2024-0945', bezeichnung: 'Erstellung einer Stützmauer entlang der Parzellengrenze Nr. 452 und Terrainanpassung', status: 'Abgeschlossen' },
-  { dossierNr: '2026-0123', bezeichnung: 'Abbruch des bestehenden Ökonomiegebäudes und Neubau eines Mehrfamilienhauses mit 6 Wohneinheiten', status: 'Auflage' },
-  { dossierNr: '2025-0789', bezeichnung: 'Aussenwärmedämmung und Fenstersanierung bei Wohnhaus Nr. 22b', status: 'Leitentscheid' },
-  { dossierNr: '2023-3310', bezeichnung: 'Erstellung einer ungedeckten Parkplatzfläche für 4 Fahrzeuge', status: 'Abgeschlossen' },
-  { dossierNr: '2026-0441', bezeichnung: 'Umnutzung Ladenlokal Erdgeschoss zu Büroflächen und Einbau einer rollstuhlgängigen Toilettenanlage', status: 'In Prüfung' },
-  { dossierNr: '2025-1256', bezeichnung: 'Ersatz der bestehenden Holzheizung durch eine Pelletheizung inkl. Kaminanlage an der Nordfassade', status: 'Leitentscheid' },
-  { dossierNr: '2022-5501', bezeichnung: 'Sanierung und Erweiterung der bestehenden Jauchegrube auf Parzelle Nr. 118', status: 'Abgeschlossen' },
-  { dossierNr: '2026-0902', bezeichnung: 'Erstellung eines Wintergartens (unbeheizt) auf der Westseite des bestehenden Gebäudes Nr. 88', status: 'Auflage' }
+  {
+    dossierNr: '2025-0660',
+    bezeichnung: 'Umnutzung Gebäude Nr. 134a zu Abstell- und Lagerfläche für Malerbetrieb (nachträglich) und Einbau Spaltanlage in Gebäude Nr. 134d',
+    status: 'Leitentscheid',
+    amtlicheBaudossierNr: '2026-0023',
+    eidgProjektidentifikator: '191396826',
+    anzahlProjektierteWohnungen: '5',
+    artDerArbeiten: 'Umbau',
+    artDerBauwerke: 'Hochbau',
+    typDerBauwerke: 'Garagen',
+  },
+  {
+    dossierNr: '2022-4426',
+    bezeichnung: 'Neubau einer Niederspannungsrohranlage und Abbruch der bestehenden Freileitung',
+    status: 'Abgeschlossen',
+    amtlicheBaudossierNr: 'BDS-LU-2022-4426',
+    eidgProjektidentifikator: 'CH-LU-INF-224426',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Neubau / Rückbau',
+    artDerBauwerke: 'Infrastrukturanlage',
+    typDerBauwerke: 'Energieversorgung',
+  },
+  {
+    dossierNr: '2017-1977',
+    bezeichnung: 'Anbau Garage + Holzschnitzellager',
+    status: 'Abgeschlossen',
+    amtlicheBaudossierNr: 'BDS-LU-2017-1977',
+    eidgProjektidentifikator: 'CH-LU-ANB-171977',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Anbau',
+    artDerBauwerke: 'Nebenbau',
+    typDerBauwerke: 'Garage / Lager',
+  },
+  {
+    dossierNr: '2026-0572',
+    bezeichnung: 'Einbau Wohnung',
+    status: 'Leitentscheid',
+    amtlicheBaudossierNr: 'BDS-LU-2026-0572',
+    eidgProjektidentifikator: 'CH-LU-WOH-260572',
+    anzahlProjektierteWohnungen: '1',
+    artDerArbeiten: 'Innenausbau / Umnutzung',
+    artDerBauwerke: 'Bestandesbau',
+    typDerBauwerke: 'Wohnbau',
+  },
+  {
+    dossierNr: '2024-0637',
+    bezeichnung: 'Fassadensanierung und Anbau Balkone',
+    status: 'Abgeschlossen',
+    amtlicheBaudossierNr: 'BDS-LU-2024-0637',
+    eidgProjektidentifikator: 'CH-LU-SAN-240637',
+    anzahlProjektierteWohnungen: '6',
+    artDerArbeiten: 'Sanierung / Anbau',
+    artDerBauwerke: 'Bestandesbau',
+    typDerBauwerke: 'Mehrfamilienhaus',
+  },
+  {
+    dossierNr: '2026-0812',
+    bezeichnung: 'Installation einer Photovoltaikanlage auf der Südwestdachfläche und Ersatz der Ölheizung durch eine Luft-Wasser-Wärmepumpe',
+    status: 'In Prüfung',
+    amtlicheBaudossierNr: 'BDS-LU-2026-0812',
+    eidgProjektidentifikator: 'CH-LU-ENE-260812',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Energetische Sanierung',
+    artDerBauwerke: 'Dachanlage / Haustechnik',
+    typDerBauwerke: 'Energieanlage',
+  },
+  {
+    dossierNr: '2025-1104',
+    bezeichnung: 'Neubau Einfamilienhaus mit integrierter Doppelgarage und Umgebungsgestaltung',
+    status: 'Leitentscheid',
+    amtlicheBaudossierNr: 'BDS-LU-2025-1104',
+    eidgProjektidentifikator: 'CH-LU-NBH-251104',
+    anzahlProjektierteWohnungen: '1',
+    artDerArbeiten: 'Neubau',
+    artDerBauwerke: 'Hauptbau mit Nebenanlage',
+    typDerBauwerke: 'Einfamilienhaus',
+  },
+  {
+    dossierNr: '2024-0945',
+    bezeichnung: 'Erstellung einer Stützmauer entlang der Parzellengrenze Nr. 452 und Terrainanpassung',
+    status: 'Abgeschlossen',
+    amtlicheBaudossierNr: 'BDS-LU-2024-0945',
+    eidgProjektidentifikator: 'CH-LU-TER-240945',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Tiefbau / Umgebung',
+    artDerBauwerke: 'Stützmauer',
+    typDerBauwerke: 'Terrainbauwerk',
+  },
+  {
+    dossierNr: '2026-0123',
+    bezeichnung: 'Abbruch des bestehenden Ökonomiegebäudes und Neubau eines Mehrfamilienhauses mit 6 Wohneinheiten',
+    status: 'Auflage',
+    amtlicheBaudossierNr: 'BDS-LU-2026-0123',
+    eidgProjektidentifikator: 'CH-LU-MFH-260123',
+    anzahlProjektierteWohnungen: '6',
+    artDerArbeiten: 'Abbruch / Neubau',
+    artDerBauwerke: 'Hauptbau',
+    typDerBauwerke: 'Mehrfamilienhaus',
+  },
+  {
+    dossierNr: '2025-0789',
+    bezeichnung: 'Aussenwärmedämmung und Fenstersanierung bei Wohnhaus Nr. 22b',
+    status: 'Leitentscheid',
+    amtlicheBaudossierNr: 'BDS-LU-2025-0789',
+    eidgProjektidentifikator: 'CH-LU-SAN-250789',
+    anzahlProjektierteWohnungen: '2',
+    artDerArbeiten: 'Sanierung',
+    artDerBauwerke: 'Bestandesbau',
+    typDerBauwerke: 'Wohnhaus',
+  },
+  {
+    dossierNr: '2023-3310',
+    bezeichnung: 'Erstellung einer ungedeckten Parkplatzfläche für 4 Fahrzeuge',
+    status: 'Abgeschlossen',
+    amtlicheBaudossierNr: 'BDS-LU-2023-3310',
+    eidgProjektidentifikator: 'CH-LU-PAR-233310',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Neuanlage',
+    artDerBauwerke: 'Nebenanlage',
+    typDerBauwerke: 'Parkierungsanlage',
+  },
+  {
+    dossierNr: '2026-0441',
+    bezeichnung: 'Umnutzung Ladenlokal Erdgeschoss zu Büroflächen und Einbau einer rollstuhlgängigen Toilettenanlage',
+    status: 'In Prüfung',
+    amtlicheBaudossierNr: 'BDS-LU-2026-0441',
+    eidgProjektidentifikator: 'CH-LU-UMN-260441',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Umnutzung / Innenausbau',
+    artDerBauwerke: 'Bestandesbau',
+    typDerBauwerke: 'Dienstleistungsbau',
+  },
+  {
+    dossierNr: '2025-1256',
+    bezeichnung: 'Ersatz der bestehenden Holzheizung durch eine Pelletheizung inkl. Kaminanlage an der Nordfassade',
+    status: 'Leitentscheid',
+    amtlicheBaudossierNr: 'BDS-LU-2025-1256',
+    eidgProjektidentifikator: 'CH-LU-ENE-251256',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Heizungsersatz',
+    artDerBauwerke: 'Haustechnikanlage',
+    typDerBauwerke: 'Energieanlage',
+  },
+  {
+    dossierNr: '2022-5501',
+    bezeichnung: 'Sanierung und Erweiterung der bestehenden Jauchegrube auf Parzelle Nr. 118',
+    status: 'Abgeschlossen',
+    amtlicheBaudossierNr: 'BDS-LU-2022-5501',
+    eidgProjektidentifikator: 'CH-LU-LAN-225501',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Sanierung / Erweiterung',
+    artDerBauwerke: 'Nebenbau / Anlage',
+    typDerBauwerke: 'Landwirtschaftsbau',
+  },
+  {
+    dossierNr: '2026-0902',
+    bezeichnung: 'Erstellung eines Wintergartens (unbeheizt) auf der Westseite des bestehenden Gebäudes Nr. 88',
+    status: 'Auflage',
+    amtlicheBaudossierNr: 'BDS-LU-2026-0902',
+    eidgProjektidentifikator: 'CH-LU-ANB-260902',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Anbau',
+    artDerBauwerke: 'Nebenbau',
+    typDerBauwerke: 'Wintergarten',
+  },
+  {
+    dossierNr: '2024-0318',
+    bezeichnung: 'Ersatz Backofen mit neuer Kamin- und Lüftungsanlage',
+    status: 'Abgeschlossen',
+    amtlicheBaudossierNr: 'BDS-LU-2024-0318',
+    eidgProjektidentifikator: 'CH-LU-GEW-240318',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Anlagenerneuerung',
+    artDerBauwerke: 'Haustechnikanlage',
+    typDerBauwerke: 'Gewerbebau',
+  },
+  {
+    dossierNr: '2026-0674',
+    bezeichnung: 'Installation einer Luft/Wasser-Wärmepumpe',
+    status: 'Vernehmlassung',
+    amtlicheBaudossierNr: 'BDS-LU-2026-0674',
+    eidgProjektidentifikator: 'CH-LU-ENE-260674',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Technikinstallation',
+    artDerBauwerke: 'Haustechnikanlage',
+    typDerBauwerke: 'Wärmepumpe',
+  },
+  {
+    dossierNr: '2026-0721',
+    bezeichnung: 'Neubau von zwei Mehrfamilienhäusern mit Einstellhallen',
+    status: 'Vernehmlassung',
+    amtlicheBaudossierNr: 'BDS-LU-2026-0721',
+    eidgProjektidentifikator: 'CH-LU-MFH-260721',
+    anzahlProjektierteWohnungen: '18',
+    artDerArbeiten: 'Neubau',
+    artDerBauwerke: 'Hauptbauten mit Einstellhalle',
+    typDerBauwerke: 'Mehrfamilienhäuser',
+  },
+  {
+    dossierNr: '2025-1188',
+    bezeichnung: 'Aufstockung best. Mehrfamilienhaus und Energetische Sanierung',
+    status: 'Entscheidung',
+    amtlicheBaudossierNr: 'BDS-LU-2025-1188',
+    eidgProjektidentifikator: 'CH-LU-SAN-251188',
+    anzahlProjektierteWohnungen: '4',
+    artDerArbeiten: 'Aufstockung / Sanierung',
+    artDerBauwerke: 'Bestandesbau',
+    typDerBauwerke: 'Mehrfamilienhaus',
+  },
+  {
+    dossierNr: '2023-2875',
+    bezeichnung: 'Prov. Baustelleninstallation Seetalplatz',
+    status: 'Abgeschlossen',
+    amtlicheBaudossierNr: 'BDS-LU-2023-2875',
+    eidgProjektidentifikator: 'CH-LU-BAU-232875',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Temporäre Installation',
+    artDerBauwerke: 'Baustelleneinrichtung',
+    typDerBauwerke: 'Provisorium',
+  },
+  {
+    dossierNr: '2026-0836',
+    bezeichnung: 'Windanlage auf Dach über Werk 1',
+    status: 'Vernehmlassung',
+    amtlicheBaudossierNr: 'BDS-LU-2026-0836',
+    eidgProjektidentifikator: 'CH-LU-ENE-260836',
+    anzahlProjektierteWohnungen: '0',
+    artDerArbeiten: 'Anlageninstallation',
+    artDerBauwerke: 'Dachaufbau',
+    typDerBauwerke: 'Windenergieanlage',
+  }
 ];
 
 const DUMMY_KATASTERWERTE = [
@@ -464,8 +902,8 @@ function buildSearchResults(query: string): SearchResult[] {
   return [0, 1].map(i => {
     const info = buildDummyInfo(query + i);
     return {
-      label:    `Grundstück ${info.grundstueckNummer} (${info.grundstueckArt})`,
-      subLabel: `${info.egrid} — ${info.eigentuemer}`,
+      label: `Grundstück ${info.grundstueckNummer} (${info.grundstueckArt})`,
+      subLabel: `${info.egrid} — ${info.gemeinde}`,
       info,
     };
   });
@@ -476,11 +914,12 @@ function buildSearchResults(query: string): SearchResult[] {
 function LoadingOverlay() {
   return (
     <div style={{
-      position: 'fixed', bottom: 32, left: 32, zIndex: 1000,
+      position: 'fixed', bottom: 'clamp(12px, 4vw, 32px)', left: 'clamp(12px, 4vw, 32px)', zIndex: 1000,
+      width: 'min(360px, calc(100vw - 24px))',
       background: 'rgba(255,255,255,0.92)', borderRadius: 8,
       boxShadow: '0 4px 16px rgba(0,0,0,0.14)',
-      padding: '14px 20px',
-      fontSize: 14, color: '#444', display: 'flex', alignItems: 'center', gap: 10,
+      padding: '12px 14px',
+      fontSize: 13, color: '#444', display: 'flex', alignItems: 'center', gap: 10,
     }}>
       <span style={{ fontSize: 18 }}>⏳</span> Loading parcels…
     </div>
@@ -490,11 +929,12 @@ function LoadingOverlay() {
 function ErrorBox({ message, onClose }: { message: string; onClose: () => void }) {
   return (
     <div style={{
-      position: 'fixed', bottom: 32, left: 32, zIndex: 1000,
+      position: 'fixed', bottom: 'clamp(12px, 4vw, 32px)', left: 'clamp(12px, 4vw, 32px)', zIndex: 1000,
+      width: 'min(420px, calc(100vw - 24px))',
       background: '#fff3f3', border: '1px solid #f5c5c5', borderRadius: 8,
       boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
-      padding: '14px 20px', minWidth: 260,
-      fontSize: 14, color: '#c0392b',
+      padding: '12px 14px', minWidth: 'unset',
+      fontSize: 13, color: '#c0392b',
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <strong>Error</strong>
@@ -513,10 +953,17 @@ const STATUS_BADGE: Record<string, { bg: string; color: string }> = {
   'bestehend':      { bg: '#d4edda', color: '#155724' },
   'abgebrochen':    { bg: '#f8d7da', color: '#721c24' },
   'projektiert':    { bg: '#cce5ff', color: '#004085' },
-  'Abgeschlossen':  { bg: '#e2e3e5', color: '#383d41' },
-  'Leitentscheid':  { bg: '#fff3cd', color: '#856404' },
+  'geplant':        { bg: '#cce5ff', color: '#004085' },
+  'im Bau':         { bg: '#fff3cd', color: '#856404' },
+  'Abgeschlossen':  { bg: '#d4edda', color: '#155724' },
+  'Leitentscheid':  { bg: 'rgb(166, 0, 133)', color: '#ffffff' },
   'Bewilligt':      { bg: '#d4edda', color: '#155724' },
   'In Bearbeitung': { bg: '#fff3cd', color: '#856404' },
+  'Vernehmlassung': { bg: '#dbeafe', color: '#1d4ed8' },
+  'Entscheidung':   { bg: 'rgb(255, 117, 225)', color: '#ffffff' },
+  'Sichten':        { bg: 'rgb(255, 255, 191)', color: '#6b5a00' },
+  'In Prüfung':     { bg: 'rgb(255, 255, 191)', color: '#6b5a00' },
+  'Auflage':        { bg: 'rgb(255, 255, 191)', color: '#6b5a00' },
 };
 
 function SectionIcon({ title }: { title: string }) {
@@ -595,11 +1042,11 @@ function Section({
 
 function FieldRow({ label, value, mono = false }: { label: string; value: ReactNode; mono?: boolean }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 14, fontSize: 13, lineHeight: 1.45 }}>
-      <span style={{ color: '#6b7280', flexShrink: 0, fontSize: 12 }}>{label}</span>
-      <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right', fontSize: mono ? 12 : 13, maxWidth: '62%' }}>
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '4px 14px', flexWrap: 'wrap', fontSize: 13, lineHeight: 1.45 }}>
+      <span style={{ color: '#6b7280', flex: '1 1 140px', fontSize: 12 }}>{label}</span>
+      <div style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'left', fontSize: mono ? 12 : 13, maxWidth: '100%', flex: '1 1 180px', wordBreak: 'break-word' }}>
         {value}
-      </span>
+      </div>
     </div>
   );
 }
@@ -628,19 +1075,57 @@ function ProtectedFieldRow({
   isAuthenticated,
 }: {
   label: string;
-  value: string;
+  value: ReactNode;
   isAuthenticated: boolean;
 }) {
   return (
     <FieldRow
       label={label}
       value={isAuthenticated ? value : (
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#6b7280' }}>
+        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#6b7280', justifyContent: 'flex-start' }}>
           <InlineMetaIcon><LuLock size={12} color="#111" /></InlineMetaIcon>
           <span>Login erforderlich</span>
         </span>
       )}
     />
+  );
+}
+
+function OwnershipValue({ info }: { info: OwnershipInfo }) {
+  const renderParties = (parteien: OwnerParty[]) => (
+    <>
+      {parteien.map((partei, index) => (
+        <div key={`${partei.name}-${index}`} style={{ display: 'grid', gap: 2 }}>
+          <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{partei.name}</div>
+          {partei.addresses.map((address, addressIndex) => (
+            <div key={`${address.label}-${addressIndex}`} style={{ fontSize: 12, color: '#4b5563', lineHeight: 1.45 }}>
+              <span style={{ color: '#6b7280', fontWeight: 600 }}>{address.label}:</span>{' '}
+              <span>{address.value}</span>
+            </div>
+          ))}
+        </div>
+      ))}
+    </>
+  );
+
+  return (
+    <div style={{ display: 'grid', gap: 8, width: '100%', textAlign: 'left' }}>
+      <div style={{ fontWeight: 700, color: '#1a1a1a' }}>{info.eigentumsform}</div>
+      {info.beteiligungen?.length ? (
+        <div style={{ display: 'grid', gap: 8 }}>
+          {info.beteiligungen.map((beteiligung, index) => (
+            <div key={`${beteiligung.grundstueck}-${index}`} style={{ display: 'grid', gap: 4, padding: '8px 10px', borderRadius: 8, background: '#fafafa', border: '1px solid #eceff3' }}>
+              <div style={{ fontWeight: 700, color: '#1a1a1a' }}>
+                {beteiligung.grundstueck}
+                {beteiligung.anteil ? <span style={{ color: '#6b7280', fontWeight: 600 }}> ({beteiligung.anteil})</span> : null}
+              </div>
+              <div style={{ fontSize: 12, color: '#6b7280', lineHeight: 1.4 }}>{beteiligung.eigentumsform}</div>
+              {renderParties(beteiligung.parteien)}
+            </div>
+          ))}
+        </div>
+      ) : renderParties(info.parteien)}
+    </div>
   );
 }
 
@@ -665,12 +1150,12 @@ function ContactRow({ label, contact }: { label: string; contact: ContactInfo })
     <div style={{ display: 'flex', flexDirection: 'column', gap: 7, fontSize: 13, padding: '11px 12px', borderRadius: 10, background: '#fcfcfc', border: '1px solid #f1f1f1' }}>
       <span style={{ color: '#6b7280', fontSize: 11, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{label}</span>
 
-      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, lineHeight: 1.4 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0, lineHeight: 1.4, flex: '1 1 180px' }}>
           <span style={{ fontWeight: 700, color: '#111827' }}>{contact.office}</span>
           <span style={{ color: '#4b5563' }}>{contact.person}</span>
         </div>
-        <div style={{ display: 'inline-flex', gap: 6 }}>
+        <div style={{ display: 'inline-flex', gap: 6, flexWrap: 'wrap' }}>
           <a href={phoneHref} aria-label={`Telefon ${label}`} style={actionStyle}><LuPhone size={13} /></a>
           <a href={`mailto:${contact.email}`} aria-label={`E-Mail ${label}`} style={actionStyle}><LuMail size={13} /></a>
           <a href={webHref} target="_blank" rel="noreferrer" aria-label={`Website ${label}`} style={actionStyle}><LuGlobe size={13} /></a>
@@ -700,7 +1185,7 @@ function escapeHtml(value: string): string {
     .replace(/'/g, '&#39;');
 }
 
-function handleDummyPdfExport(info: ObjectInfo) {
+function handleDummyPdfExport(info: ObjectInfo, isAuthenticated: boolean) {
   const popup = window.open('', '_blank', 'width=900,height=700');
   if (!popup) {
     window.alert('Bitte Pop-ups erlauben, um den PDF-Export zu öffnen.');
@@ -713,6 +1198,43 @@ function handleDummyPdfExport(info: ObjectInfo) {
       <p>${values.length ? escapeHtml(values.join(', ')) : '—'}</p>
     </div>
   `;
+
+  const renderProtectedValue = (value: string) => isAuthenticated ? escapeHtml(value) : 'Login erforderlich';
+  const renderProtectedList = (title: string, values: string[]) => renderList(title, isAuthenticated ? values : ['Login erforderlich']);
+  const renderPartyHtml = (partei: OwnerParty) => `
+    <div style="margin-top: 6px;">
+      <strong>${escapeHtml(partei.name)}</strong><br />
+      ${partei.addresses.map((address) => `${escapeHtml(address.label)}: ${escapeHtml(address.value)}`).join('<br />')}
+    </div>
+  `;
+  const renderOwnershipBlock = (title: string, ownerInfo: OwnershipInfo) => {
+    if (!isAuthenticated) {
+      return `
+        <div class="block">
+          <h3>${title}</h3>
+          <p>Login erforderlich</p>
+        </div>
+      `;
+    }
+
+    const ownershipDetails = ownerInfo.beteiligungen?.length
+      ? ownerInfo.beteiligungen.map((beteiligung) => `
+          <div style="margin-top: 8px; padding: 8px 10px; border: 1px solid #e5e7eb; border-radius: 8px;">
+            <strong>${escapeHtml(beteiligung.grundstueck)}${beteiligung.anteil ? ` (${escapeHtml(beteiligung.anteil)})` : ''}</strong><br />
+            <span style="color: #6b7280;">${escapeHtml(beteiligung.eigentumsform)}</span>
+            ${beteiligung.parteien.map(renderPartyHtml).join('')}
+          </div>
+        `).join('')
+      : ownerInfo.parteien.map(renderPartyHtml).join('');
+
+    return `
+      <div class="block">
+        <h3>${title}</h3>
+        <p><strong>${escapeHtml(ownerInfo.eigentumsform)}</strong></p>
+        ${ownershipDetails}
+      </div>
+    `;
+  };
 
   const renderContact = (title: string, contact: ContactInfo) => `
     <div class="block">
@@ -732,9 +1254,16 @@ function handleDummyPdfExport(info: ObjectInfo) {
   const buildingRows = info.gebaeude.map(g => `
     <tr>
       <td>${escapeHtml(g.nr)}</td>
+      <td>${escapeHtml(g.versicherungsNr || '—')}</td>
+      <td>${escapeHtml(g.baujahrBauperiode || '—')}</td>
+      <td>${escapeHtml(g.gebaeudekategorie || '—')}</td>
+      <td>${escapeHtml(g.gebaeudestatus || '—')}</td>
+      <td>${escapeHtml(g.adresse || '—')}</td>
+      <td>${escapeHtml(g.koordinaten || '—')}</td>
       <td>${escapeHtml(g.egid)}</td>
-      <td>${escapeHtml(g.bezeichnung || '—')}</td>
-      <td>${escapeHtml(g.status)}</td>
+      <td>${isAuthenticated ? escapeHtml(g.verwaltungGebaeude || '—') : 'Login erforderlich'}</td>
+      <td>${isAuthenticated ? escapeHtml(g.versicherungswert || '—') : 'Login erforderlich'}</td>
+      <td>${isAuthenticated ? escapeHtml(g.anzahlWohnungen || '—') : 'Login erforderlich'}</td>
     </tr>
   `).join('');
 
@@ -782,18 +1311,18 @@ function handleDummyPdfExport(info: ObjectInfo) {
 
         <h2>Grundstück</h2>
         <div class="grid">
-          <div class="block"><h3>Eigentümer</h3><p>${escapeHtml(info.eigentuemer)}</p></div>
-          <div class="block"><h3>Katasterwert</h3><p>${escapeHtml(info.katasterwert)}</p></div>
+          ${renderOwnershipBlock('Eigentümer', info.eigentuemer)}
+          <div class="block"><h3>Katasterwert</h3><p>${renderProtectedValue(info.katasterwert)}</p></div>
         </div>
-        ${renderList('Dienstbarkeiten / Grundlasten', info.dienstbarkeiten)}
-        ${renderList('Anmerkungen', info.anmerkungen)}
-        ${renderList('Grundpfandrechte', info.grundpfandrechte)}
-        ${renderList('Erwerbsarten', info.erwerbsarten)}
-        ${renderList('Offene Geschäfte', info.offeneGeschaefte)}
+        ${renderProtectedList('Dienstbarkeiten / Grundlasten', info.dienstbarkeiten)}
+        ${renderProtectedList('Anmerkungen', info.anmerkungen)}
+        ${renderProtectedList('Grundpfandrechte', info.grundpfandrechte)}
+        ${renderProtectedList('Erwerbsarten', info.erwerbsarten)}
+        ${renderProtectedList('Offene Geschäfte', info.offeneGeschaefte)}
 
         <h2>Gebäude</h2>
         <table>
-          <thead><tr><th>Nr.</th><th>EGID</th><th>Bezeichnung</th><th>Status</th></tr></thead>
+          <thead><tr><th>Nr.</th><th>Versicherungs-Nr.</th><th>Baujahr / Bauperiode</th><th>Gebäudekategorie</th><th>Gebäudestatus</th><th>Adresse</th><th>Koordinaten</th><th>EGID</th><th>Verwaltung Gebäude</th><th>Versicherungswert</th><th>Anzahl Wohnungen</th></tr></thead>
           <tbody>${buildingRows}</tbody>
         </table>
 
@@ -815,14 +1344,14 @@ function handleDummyPdfExport(info: ObjectInfo) {
   window.setTimeout(() => popup.print(), 200);
 }
 
-function ExportSection({ info }: { info: ObjectInfo }) {
+function ExportSection({ info, isAuthenticated }: { info: ObjectInfo; isAuthenticated: boolean }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 10, padding: '2px 0' }}>
       <span style={{ color: '#6b7280', fontSize: 12, lineHeight: 1.45 }}>
-        Exportiere alle verfügbaren Grundstücksdaten als PDF über den Browser-Druckdialog.
+        Exportiere alle aktuell verfügbaren Grundstücksdaten als PDF über den Browser-Druckdialog.
       </span>
       <button
-        onClick={() => handleDummyPdfExport(info)}
+        onClick={() => handleDummyPdfExport(info, isAuthenticated)}
         style={{
           display: 'inline-flex',
           alignItems: 'center',
@@ -1145,10 +1674,11 @@ function DummyChatbotWidget() {
       {open && (
         <div style={{
           position: 'fixed',
-          right: 38,
-          bottom: 132,
-          width: 360,
-          maxWidth: 'calc(100vw - 24px)',
+          right: 8,
+          bottom: 88,
+          width: 'min(360px, calc(100vw - 16px))',
+          maxWidth: 'calc(100vw - 16px)',
+          maxHeight: 'min(70vh, 520px)',
           background: '#fff',
           border: '1px solid #d9e7ef',
           borderRadius: 16,
@@ -1181,7 +1711,7 @@ function DummyChatbotWidget() {
           <div
             ref={messagesRef}
             style={{
-              maxHeight: 320,
+              maxHeight: 'min(42vh, 320px)',
               overflowY: 'auto',
               padding: 12,
               display: 'flex',
@@ -1211,13 +1741,14 @@ function DummyChatbotWidget() {
             ))}
           </div>
 
-          <form onSubmit={handleSend} style={{ display: 'flex', gap: 8, padding: 12, borderTop: '1px solid #eef2f6', background: '#fff' }}>
+          <form onSubmit={handleSend} style={{ display: 'flex', flexWrap: 'wrap', gap: 8, padding: 12, borderTop: '1px solid #eef2f6', background: '#fff' }}>
             <input
               value={draft}
               onChange={e => setDraft(e.target.value)}
               placeholder="Frage eingeben …"
               style={{
-                flex: 1,
+                flex: '1 1 180px',
+                minWidth: 0,
                 border: '1px solid #d1d5db',
                 borderRadius: 10,
                 padding: '10px 12px',
@@ -1232,7 +1763,8 @@ function DummyChatbotWidget() {
                 borderRadius: 10,
                 background: CHATBOT_LUZERN_BLUE,
                 color: '#fff',
-                padding: '0 12px',
+                padding: '10px 12px',
+                minHeight: 40,
                 fontSize: 13,
                 fontWeight: 700,
                 cursor: 'pointer',
@@ -1250,10 +1782,10 @@ function DummyChatbotWidget() {
         title="Chatbot"
         style={{
           position: 'fixed',
-          right: 68,
-          bottom: 45,
-          width: 75,
-          height: 75,
+          right: 'clamp(12px, 4vw, 24px)',
+          bottom: 'clamp(12px, 4vw, 20px)',
+          width: 62,
+          height: 62,
           borderRadius: 999,
           border: 'none',
           background: CHATBOT_LUZERN_BLUE,
@@ -1266,7 +1798,7 @@ function DummyChatbotWidget() {
           zIndex: 1700,
         }}
       >
-        <LuzernChatFabIcon size={46} />
+        <LuzernChatFabIcon size={36} />
       </button>
     </>
   );
@@ -1336,24 +1868,26 @@ function CollapsibleZonenplan({ entries }: { entries: ZonenplanEntry[] }) {
         <span style={{ color: '#3388ff', fontWeight: 600, fontSize: 12 }}>{open ? '▲ zuklappen' : `▼ ${entries.length} Einträge`}</span>
       </div>
       {open && (
-        <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
-            <span>Zonentyp</span>
-            <span>Gemeinde</span>
-            <span style={{ textAlign: 'right' }}>Fläche</span>
-            <span style={{ textAlign: 'right' }}>Anteil</span>
-          </div>
-          {entries.map((e, i) => (
-            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '0 8px', fontSize: 12, alignItems: 'center' }}>
-              <span style={{ color: '#555', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <TinyLegendSymbol fill={getZoneColor(e.zonentyp, e.gemeinde)} title={e.zonentyp} variant="zonenplan" />
-                <span>{e.zonentyp}</span>
-              </span>
-              <span style={{ color: '#555' }}>{e.gemeinde}</span>
-              <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right' }}>{e.flaeche}</span>
-              <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right' }}>{e.anteil}</span>
+        <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', overflowX: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, minWidth: 420 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
+              <span>Zonentyp</span>
+              <span>Gemeinde</span>
+              <span style={{ textAlign: 'right' }}>Fläche</span>
+              <span style={{ textAlign: 'right' }}>Anteil</span>
             </div>
-          ))}
+            {entries.map((e, i) => (
+              <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto auto', gap: '0 8px', fontSize: 12, alignItems: 'center' }}>
+                <span style={{ color: '#555', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                  <TinyLegendSymbol fill={getZoneColor(e.zonentyp, e.gemeinde)} title={e.zonentyp} variant="zonenplan" />
+                  <span>{e.zonentyp}</span>
+                </span>
+                <span style={{ color: '#555' }}>{e.gemeinde}</span>
+                <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right' }}>{e.flaeche}</span>
+                <span style={{ fontWeight: 600, color: '#1a1a1a', textAlign: 'right' }}>{e.anteil}</span>
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -1362,6 +1896,8 @@ function CollapsibleZonenplan({ entries }: { entries: ZonenplanEntry[] }) {
 
 function CollapsibleBauprojekte({ entries }: { entries: ProjectInfo[] }) {
   const [open, setOpen] = useState(false);
+  const [expandedDossier, setExpandedDossier] = useState<string | null>(null);
+
   return (
     <div style={{ fontSize: 13 }}>
       <div
@@ -1372,57 +1908,188 @@ function CollapsibleBauprojekte({ entries }: { entries: ProjectInfo[] }) {
         <span style={{ color: '#3388ff', fontWeight: 600, fontSize: 12 }}>{open ? '▲ zuklappen' : `▼ ${entries.length} Einträge`}</span>
       </div>
       {open && (
-        <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
-            <span>Dossier</span>
-            <span>Bezeichnung</span>
-            <span style={{ textAlign: 'right' }}>Status</span>
+        <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', overflowX: 'auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, minWidth: 420 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
+              <span>Dossier</span>
+              <span>Bezeichnung</span>
+              <span style={{ textAlign: 'right' }}>Status</span>
+            </div>
+            {entries.map((p, i) => {
+              const c = STATUS_BADGE[p.status] ?? { bg: '#eee', color: '#555' };
+              const isExpanded = expandedDossier === p.dossierNr;
+              return (
+                <div key={i} style={{ display: 'flex', flexDirection: 'column', gap: 6, padding: '2px 0' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 12, alignItems: 'baseline' }}>
+                    <button
+                      type="button"
+                      onClick={() => setExpandedDossier((value) => value === p.dossierNr ? null : p.dossierNr)}
+                      aria-expanded={isExpanded}
+                      style={{
+                        border: 'none',
+                        background: 'none',
+                        padding: 0,
+                        margin: 0,
+                        color: '#3388ff',
+                        fontVariantNumeric: 'tabular-nums',
+                        whiteSpace: 'nowrap',
+                        textAlign: 'left',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontSize: 12,
+                        fontWeight: 600,
+                      }}
+                      title="Details anzeigen"
+                    >
+                      {p.dossierNr}
+                    </button>
+                    <span style={{ color: '#1a1a1a' }}>{p.bezeichnung}</span>
+                    <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap', justifySelf: 'end' }}>{p.status}</span>
+                  </div>
+
+                  {isExpanded && (
+                    <div style={{
+                      border: '1px solid #e5e7eb',
+                      borderRadius: 10,
+                      background: '#f8fafc',
+                      padding: '10px 12px',
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))',
+                      gap: '10px 12px',
+                    }}>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>Amtliche Baudossier-Nr.</div>
+                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.amtlicheBaudossierNr || '—'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>Eidg. Projektidentifikator</div>
+                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.eidgProjektidentifikator || '—'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>Anzahl projektierte Wohnungen</div>
+                        <div style={{ fontWeight: 600, color: '#1a1a1a' }}>{p.anzahlProjektierteWohnungen || '—'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>Art der Arbeiten</div>
+                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.artDerArbeiten || '—'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>Art der Bauwerke</div>
+                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.artDerBauwerke || '—'}</div>
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 11, color: '#6b7280' }}>Typ der Bauwerke</div>
+                        <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{p.typDerBauwerke || '—'}</div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          {entries.map((p, i) => {
-            const c = STATUS_BADGE[p.status] ?? { bg: '#eee', color: '#555' };
-            return (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 12, alignItems: 'baseline', padding: '2px 0' }}>
-                <span style={{ color: '#555', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{p.dossierNr}</span>
-                <span style={{ color: '#1a1a1a' }}>{p.bezeichnung}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap', justifySelf: 'end' }}>{p.status}</span>
-              </div>
-            );
-          })}
         </div>
       )}
     </div>
   );
 }
 
-function CollapsibleGebaeude({ entries }: { entries: BuildingInfo[] }) {
+function CollapsibleGebaeude({ entries, isAuthenticated }: { entries: BuildingInfo[]; isAuthenticated: boolean }) {
   const [open, setOpen] = useState(false);
+  const renderProtectedValue = (value: string) => (
+    isAuthenticated ? (
+      <span style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{value || '—'}</span>
+    ) : (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, color: '#6b7280', justifyContent: 'flex-start' }}>
+        <InlineMetaIcon><LuLock size={12} color="#111" /></InlineMetaIcon>
+        <span>Login erforderlich</span>
+      </span>
+    )
+  );
+
   return (
     <div style={{ fontSize: 13 }}>
       <div
         onClick={() => setOpen(o => !o)}
-        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer', userSelect: 'none' }}
+        style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
       >
         <span style={{ color: '#666' }}>Gebäude</span>
-        <span style={{ color: '#3388ff', fontWeight: 600, fontSize: 12 }}>{open ? '▲ zuklappen' : `▼ ${entries.length} Einträge`}</span>
+        <span style={{ color: '#3388ff', fontWeight: 600, fontSize: 12 }}>
+          {open ? '▲ zuklappen' : `▼ ${entries.length} ${entries.length === 1 ? 'Eintrag' : 'Einträge'}`}
+        </span>
       </div>
       {open && (
-        <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 3 }}>
-          <div style={{ display: 'grid', gridTemplateColumns: '72px 110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 10, fontWeight: 700, color: '#aaa', textTransform: 'uppercase', letterSpacing: '0.04em', paddingBottom: 3, borderBottom: '1px solid #f0f0f0' }}>
-            <span>Nr.</span>
-            <span>EGID</span>
-            <span>Bezeichnung</span>
-            <span style={{ textAlign: 'right' }}>Status</span>
-          </div>
+        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 10 }}>
           {entries.map((g, i) => {
-            const c = STATUS_BADGE[g.status] ?? { bg: '#eee', color: '#555' };
+            const c = STATUS_BADGE[g.gebaeudestatus] ?? { bg: '#eee', color: '#555' };
             return (
-              <div key={i} style={{ display: 'grid', gridTemplateColumns: '72px 110px minmax(0, 1fr) 120px', gap: '0 8px', fontSize: 12, alignItems: 'baseline', padding: '2px 0' }}>
-                <span style={{ color: '#555', whiteSpace: 'nowrap' }}>{g.nr}</span>
-                <span style={{ color: '#555', fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>{g.egid}</span>
-                <span style={{ color: '#555' }}>{g.bezeichnung || '—'}</span>
-                <span style={{ fontSize: 11, fontWeight: 600, padding: '1px 7px', borderRadius: 20, background: c.bg, color: c.color, whiteSpace: 'nowrap', justifySelf: 'end' }}>
-                  {g.status}
-                </span>
+              <div
+                key={`${g.egid}-${i}`}
+                style={{
+                  border: '1px solid #e5e7eb',
+                  borderRadius: 12,
+                  background: '#f9fafb',
+                  padding: 12,
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 10,
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ minWidth: 0 }}>
+                    <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                      Gebäude {i + 1}
+                    </div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#1f2937', wordBreak: 'break-word' }}>
+                      Nr. {g.nr}
+                    </div>
+                  </div>
+                  <span style={{ fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 999, background: c.bg, color: c.color, whiteSpace: 'nowrap' }}>
+                    {g.gebaeudestatus}
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '10px 12px' }}>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Versicherungs-Nr.</div>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{g.versicherungsNr || '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Baujahr / Bauperiode</div>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{g.baujahrBauperiode || '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Gebäudekategorie</div>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{g.gebaeudekategorie || '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Gebäudestatus</div>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{g.gebaeudestatus || '—'}</div>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Adresse</div>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a', wordBreak: 'break-word' }}>{g.adresse || '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Koordinaten (Gebäudeschwerpunkt)</div>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a', fontVariantNumeric: 'tabular-nums', wordBreak: 'break-word' }}>{g.koordinaten || '—'}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>EGID</div>
+                    <div style={{ fontWeight: 600, color: '#1a1a1a', fontVariantNumeric: 'tabular-nums', wordBreak: 'break-word' }}>{g.egid}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Verwaltung Gebäude</div>
+                    <div>{renderProtectedValue(g.verwaltungGebaeude)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Versicherungswert</div>
+                    <div>{renderProtectedValue(g.versicherungswert)}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 11, color: '#6b7280' }}>Anzahl Wohnungen</div>
+                    <div>{renderProtectedValue(g.anzahlWohnungen)}</div>
+                  </div>
+                </div>
               </div>
             );
           })}
@@ -1446,12 +2113,12 @@ function CollapsibleBodenbedeckung({ entries }: { entries: BodenbedeckungEntry[]
       {open && (
         <div style={{ marginTop: 6, paddingLeft: 8, borderLeft: '2px solid #e8e8e8', display: 'flex', flexDirection: 'column', gap: 4 }}>
           {entries.map((e, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center' }}>
-              <span style={{ color: '#555', display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+              <span style={{ color: '#555', display: 'inline-flex', alignItems: 'center', gap: 6, flex: '1 1 180px', minWidth: 0 }}>
                 <TinyLegendSymbol fill={getBodenbedeckungColor(e.label)} title={e.label} variant="bodenbedeckung" />
                 <span>{e.label}</span>
               </span>
-              <span style={{ fontWeight: 600, color: '#1a1a1a' }}>{e.area}</span>
+              <span style={{ fontWeight: 600, color: '#1a1a1a', whiteSpace: 'nowrap' }}>{e.area}</span>
             </div>
           ))}
         </div>
@@ -1520,14 +2187,14 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
   return (
     <div style={{
       background: '#fff', border: '1px solid #e5e7eb', borderTop: 'none',
-      borderRadius: '0 0 10px 10px',
+      borderRadius: '0 0 12px 12px',
       boxShadow: '0 6px 18px rgba(0,0,0,0.12)',
       overflow: 'hidden',
     }}>
       <div style={{
         background: 'rgba(0,159,227,0.9)', color: '#fff',
-        padding: '9px 14px',
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        padding: '10px 12px',
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
       }}>
         <span style={{ fontWeight: 500, fontSize: 16 }}>Grundstück {info.grundstueckNummer}</span>
         <button onClick={onClose}
@@ -1535,7 +2202,7 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
           aria-label="Schliessen"><LuX size={28} /></button>
       </div>
 
-      <div style={{ padding: '16px 16px 18px', display: 'flex', flexDirection: 'column', gap: 16, maxHeight: 'calc(100vh - 200px)', overflowY: 'auto' }}>
+      <div style={{ padding: '14px 16px 16px', display: 'flex', flexDirection: 'column', gap: 14, maxHeight: 'min(65vh, calc(100dvh - 180px))', overflowY: 'auto' }}>
         <Section title="Stammdaten">
           <FieldRow label="Grundstücknummer"              value={info.grundstueckNummer} />
           <FieldRow label="Eidg. Grundstück-ID (EGRID)"  value={info.egrid} />
@@ -1549,22 +2216,45 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
         </Section>
 
         <Section title="Grundstück">
-          <FieldRow label="Eigentümer"                    value={info.eigentuemer} />
           {!isAuthenticated && (
             <div style={{ padding: '8px 10px', borderRadius: 8, background: '#f9fafb', border: '1px solid #eceff3', color: '#6b7280', fontSize: 12, lineHeight: 1.45 }}>
-              Für Katasterwert, Dienstbarkeiten, Anmerkungen, Grundpfandrechte und Erwerbsarten bitte oben rechts einloggen.
+              Für alle Angaben unter Grundstück bitte{' '}
+              <button
+                type="button"
+                onClick={() => {
+                  if (typeof window !== 'undefined') {
+                    window.dispatchEvent(new CustomEvent(AUTH_OPEN_LOGIN_EVENT));
+                  }
+                }}
+                style={{
+                  border: 'none',
+                  background: 'none',
+                  padding: 0,
+                  margin: 0,
+                  color: '#009fe3',
+                  textDecoration: 'underline',
+                  cursor: 'pointer',
+                  fontSize: 'inherit',
+                  lineHeight: 'inherit',
+                  fontWeight: 700,
+                }}
+              >
+                einloggen
+              </button>
+              .
             </div>
           )}
+          <ProtectedFieldRow label="Eigentümer"                    value={<OwnershipValue info={info.eigentuemer} />} isAuthenticated={isAuthenticated} />
           <ProtectedFieldRow label="Katasterwert"                  value={info.katasterwert} isAuthenticated={isAuthenticated} />
           <ProtectedFieldRow label="Dienstbarkeiten / Grundlasten" value={info.dienstbarkeiten.length ? info.dienstbarkeiten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
           <ProtectedFieldRow label="Anmerkungen"                   value={info.anmerkungen.length ? info.anmerkungen.join(', ') : '—'} isAuthenticated={isAuthenticated} />
           <ProtectedFieldRow label="Grundpfandrechte"              value={info.grundpfandrechte.length ? info.grundpfandrechte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
           <ProtectedFieldRow label="Erwerbsarten"                  value={info.erwerbsarten.length ? info.erwerbsarten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
-          <FieldRow label="Offene Geschäfte"              value={info.offeneGeschaefte.length ? info.offeneGeschaefte.join(', ') : '—'} />
+          <ProtectedFieldRow label="Offene Geschäfte"              value={info.offeneGeschaefte.length ? info.offeneGeschaefte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
         </Section>
 
         <Section title="Gebäude">
-          <CollapsibleGebaeude entries={info.gebaeude} />
+          <CollapsibleGebaeude entries={info.gebaeude} isAuthenticated={isAuthenticated} />
         </Section>
         <Section title="Bauprojekte">
           <CollapsibleBauprojekte entries={info.bauprojekte} />
@@ -1574,7 +2264,7 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
           <ContactRow label="Grundbuchamt" contact={info.grundbuchamtKontakt} />
         </Section>
         <Section title="Export">
-          <ExportSection info={info} />
+          <ExportSection info={info} isAuthenticated={isAuthenticated} />
         </Section>
       </div>
     </div>
@@ -1603,8 +2293,9 @@ function SearchPanel({
 
   return (
     <div style={{
-      position: 'fixed', top: 60, left: 25, zIndex: 1500,
-      width: 400,
+      position: 'fixed', top: 52, left: 'clamp(12px, 3vw, 25px)', zIndex: 1500,
+      width: hasPanel ? 'min(520px, calc(100vw - 24px))' : 'min(400px, calc(100vw - 24px))',
+      transition: 'width 0.18s ease',
     }}>
       {/* Search input */}
       <div style={{ position: 'relative' }}>
@@ -1620,7 +2311,7 @@ function SearchPanel({
             padding: '11px 14px 11px 38px',
             border: '1px solid #ddd',
             borderRadius: (showDrop || hasPanel) ? '8px 8px 0 0' : 8,
-            fontSize: 15, outline: 'none',
+            fontSize: 14, outline: 'none',
             boxShadow: '0 2px 10px rgba(0,0,0,0.15)',
             background: '#fff',
           }}
@@ -1813,7 +2504,7 @@ export default function MapPageV2() {
   const [currentZoom, setCurrentZoom] = useState(14);
 
   return (
-    <div style={{ width: '100vw', height: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ width: '100%', minHeight: '100dvh', display: 'flex', flexDirection: 'column' }}>
 
       <Header />
 
@@ -1834,7 +2525,7 @@ export default function MapPageV2() {
           attribution={WMS_ATTRIBUTION}
         />
 
-        <ZoomControl position="bottomright" />
+        <ZoomControl position="bottomleft" />
 
         <ParcelLayer
           onFeatureSelect={props => setObjectInfo(props ? infoFromParcel(props) : null)}

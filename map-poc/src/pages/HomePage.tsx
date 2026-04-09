@@ -3,9 +3,6 @@ import { LuFileText, LuLayers3 } from 'react-icons/lu';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 
-// ─── Mockup page registry ─────────────────────────────────────────────────────
-// Add a new entry here to make a page appear on the start screen.
-
 interface MockupEntry {
   path: string;
   title: string;
@@ -18,8 +15,7 @@ const MOCKUPS: MockupEntry[] = [
   {
     path: '/map',
     title: 'Objektwesen v0.1 Mockup',
-    description:
-      'Basis Mockup.',
+    description: 'Basis Mockup.',
     icon: <LuLayers3 size={28} strokeWidth={1.9} />,
     status: 'ready',
   },
@@ -34,12 +30,10 @@ const MOCKUPS: MockupEntry[] = [
 ];
 
 const STATUS_BADGE: Record<MockupEntry['status'], { label: string; bg: string; color: string }> = {
-  ready:   { label: 'Bereit',    bg: '#d4edda', color: '#155724' },
-  wip:     { label: 'In Arbeit', bg: '#fff3cd', color: '#856404' },
-  planned: { label: 'Geplant',   bg: '#e2e3e5', color: '#383d41' },
+  ready: { label: 'Bereit', bg: '#d4edda', color: '#155724' },
+  wip: { label: 'In Arbeit', bg: '#fff3cd', color: '#856404' },
+  planned: { label: 'Geplant', bg: '#e2e3e5', color: '#383d41' },
 };
-
-// ─── Card ────────────────────────────────────────────────────────────────────
 
 function MockupCard({ entry }: { entry: MockupEntry }) {
   const badge = STATUS_BADGE[entry.status];
@@ -51,11 +45,11 @@ function MockupCard({ entry }: { entry: MockupEntry }) {
         background: '#fff',
         borderRadius: 16,
         boxShadow: '0 2px 12px rgba(0,0,0,0.09)',
-        padding: '32px 32px 28px',
+        padding: 'clamp(18px, 4vw, 32px)',
         display: 'flex',
         flexDirection: 'column',
-        gap: 16,
-        minHeight: 240,
+        gap: 14,
+        minHeight: 'clamp(200px, 30vw, 240px)',
         height: '100%',
         cursor: isClickable ? 'pointer' : 'default',
         opacity: entry.status === 'planned' ? 0.6 : 1,
@@ -63,7 +57,6 @@ function MockupCard({ entry }: { entry: MockupEntry }) {
         textDecoration: 'none',
         color: 'inherit',
         border: '1px solid #e8e8e8',
-        boxSizing: 'border-box',
       }}
       onMouseEnter={e => {
         if (isClickable) {
@@ -93,11 +86,17 @@ function MockupCard({ entry }: { entry: MockupEntry }) {
       </div>
 
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
-        <span style={{ fontWeight: 700, fontSize: 18, color: '#1a1a1a' }}>{entry.title}</span>
-        <span style={{
-          fontSize: 11, fontWeight: 600, padding: '2px 8px', borderRadius: 20,
-          background: badge.bg, color: badge.color,
-        }}>
+        <span style={{ fontWeight: 700, fontSize: 'clamp(16px, 3vw, 18px)', color: '#1a1a1a' }}>{entry.title}</span>
+        <span
+          style={{
+            fontSize: 11,
+            fontWeight: 600,
+            padding: '2px 8px',
+            borderRadius: 20,
+            background: badge.bg,
+            color: badge.color,
+          }}
+        >
           {badge.label}
         </span>
       </div>
@@ -116,42 +115,40 @@ function MockupCard({ entry }: { entry: MockupEntry }) {
 
   if (!isClickable) return card;
 
-  return <Link to={entry.path} style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%' }}>{card}</Link>;
+  return (
+    <Link to={entry.path} style={{ textDecoration: 'none', color: 'inherit', display: 'block', height: '100%' }}>
+      {card}
+    </Link>
+  );
 }
-
-// ─── Home page ────────────────────────────────────────────────────────────────
 
 export default function HomePage() {
   return (
-    <div style={{
-      minHeight: '100vh',
-      background: '#f5f6f8',
-
-      boxSizing: 'border-box',
-    }}>
+    <div style={{ minHeight: '100dvh', background: '#f5f6f8' }}>
       <Header />
-      <div style={{ padding: '40px 24px' }}>
-      {/* Header */}
-      <div style={{ maxWidth: 800, margin: '0 auto 48px' }}>
-        <h1 style={{ margin: '0 0 10px', fontSize: 30, fontWeight: 800, color: '#1a1a1a' }}>
-          Objektwesen PoC
-        </h1>
-        <p style={{ margin: 0, fontSize: 16, color: '#666' }}>
-          Wähle einen Prototyp aus, um ihn zu öffnen.
-        </p>
-      </div>
 
-      {/* Grid */}
-      <div style={{
-        maxWidth: 1080,
-        margin: '0 auto',
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))',
-        gap: 24,
-        alignItems: 'stretch',
-      }}>
-        {MOCKUPS.map(m => <MockupCard key={m.path} entry={m} />)}
-      </div>
+      <div style={{ padding: 'clamp(20px, 4vw, 40px) clamp(12px, 4vw, 24px)' }}>
+        <div style={{ maxWidth: 800, margin: '0 auto clamp(24px, 5vw, 48px)' }}>
+          <h1 style={{ margin: '0 0 10px', fontSize: 'clamp(24px, 5vw, 30px)', fontWeight: 800, color: '#1a1a1a' }}>
+            Objektwesen PoC
+          </h1>
+          <p style={{ margin: 0, fontSize: 'clamp(14px, 3vw, 16px)', color: '#666', lineHeight: 1.55 }}>
+            Wähle einen Prototyp aus, um ihn zu öffnen.
+          </p>
+        </div>
+
+        <div
+          style={{
+            maxWidth: 1080,
+            margin: '0 auto',
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))',
+            gap: 'clamp(16px, 3vw, 24px)',
+            alignItems: 'stretch',
+          }}
+        >
+          {MOCKUPS.map((mockup) => <MockupCard key={mockup.path} entry={mockup} />)}
+        </div>
       </div>
     </div>
   );
