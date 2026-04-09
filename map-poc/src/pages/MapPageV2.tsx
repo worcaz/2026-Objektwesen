@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import type { ReactNode } from 'react';
-import { LuDownload, LuFileText, LuGlobe, LuHouse, LuLayers3, LuLock, LuMail, LuPhone, LuSearch, LuX } from 'react-icons/lu';
+import { LuDownload, LuFileText, LuGlobe, LuHouse, LuLayers3, LuLock, LuMail, LuMinus, LuPhone, LuPlus, LuSearch, LuX } from 'react-icons/lu';
 import { SlLayers } from 'react-icons/sl';
 import { PiCrane } from 'react-icons/pi';
 import {
@@ -8,7 +8,6 @@ import {
   TileLayer,
   WMSTileLayer,
   GeoJSON as GeoJSONLayer,
-  ZoomControl,
   useMap,
 } from 'react-leaflet';
 import L from 'leaflet';
@@ -2329,12 +2328,13 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
 }
 
 function SearchPanel({
-  objectInfo, onSelect, onClose, onActivate,
+  objectInfo, onSelect, onClose, onActivate, onInfoPanelClick,
 }: {
   objectInfo: ObjectInfo | null;
   onSelect:   (info: ObjectInfo) => void;
   onClose:    () => void;
   onActivate?: () => void;
+  onInfoPanelClick?: () => void;
 }) {
   const [query,        setQuery]        = useState('');
   const [results,      setResults]      = useState<SearchResult[]>([]);
@@ -2351,7 +2351,7 @@ function SearchPanel({
 
   return (
     <div style={{
-      position: 'fixed', top: 52, left: 'clamp(12px, 3vw, 25px)', zIndex: 1500,
+      position: 'fixed', top: 52, left: 'clamp(12px, 3vw, 13px)', zIndex: 1500,
       width: hasPanel ? 'min(520px, calc(100vw - 24px))' : 'min(400px, calc(100vw - 24px))',
       transition: 'width 0.18s ease',
     }}>
@@ -2402,8 +2402,68 @@ function SearchPanel({
 
       {/* Info panel */}
       {hasPanel && (
-        <ObjectInfoPanel info={objectInfo} onClose={() => { onClose(); setQuery(''); }} />
+        <div onClick={onInfoPanelClick}>
+          <ObjectInfoPanel info={objectInfo} onClose={() => { onClose(); setQuery(''); }} />
+        </div>
       )}
+    </div>
+  );
+}
+
+function CustomZoomControl() {
+  const map = useMap();
+  const containerRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.disableScrollPropagation(container);
+  }, []);
+
+  const btnStyle: React.CSSProperties = {
+    width: 26,
+    height: 26,
+    border: '1px solid #e5e7eb',
+    borderRadius: 0,
+    background: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    color: '#111',
+    padding: 0,
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      style={{
+        position: 'absolute',
+        left: 12,
+        bottom: 12,
+        zIndex: 1000,
+        display: 'flex',
+        flexDirection: 'column',
+        pointerEvents: 'auto',
+      }}
+    >
+      <button
+        type="button"
+        aria-label="Zoom in"
+        style={{ ...btnStyle, borderBottom: 'none' }}
+        onClick={() => map.zoomIn()}
+      >
+        <LuPlus size={16} />
+      </button>
+      <button
+        type="button"
+        aria-label="Zoom out"
+        style={btnStyle}
+        onClick={() => map.zoomOut()}
+      >
+        <LuMinus size={16} />
+      </button>
     </div>
   );
 }
@@ -2522,8 +2582,8 @@ function MapLayerSelectorControl({
       ref={containerRef}
       style={{
         position: 'absolute',
-        left: 60,
-        bottom: 12,
+        left: 12,
+        bottom: 80,
         zIndex: 1605,
         pointerEvents: 'auto',
         fontFamily: 'Inter, system-ui, sans-serif',
@@ -2578,10 +2638,10 @@ function MapLayerSelectorControl({
         aria-label={open ? 'Karteninhalt schliessen' : 'Karteninhalt öffnen'}
         title={open ? 'Karteninhalt schliessen' : 'Karteninhalt öffnen'}
         style={{
-          width: 38,
-          height: 38,
+          width: 35,
+          height: 35,
           border: '1px solid #e5e7eb',
-          borderRadius: 10,
+          borderRadius: 0,
           background: '#fff',
           boxShadow: '0 6px 18px rgba(0, 0, 0, 0.12)',
           display: 'inline-flex',
@@ -2828,7 +2888,7 @@ export default function MapPageV2() {
           />
         )}
 
-        <ZoomControl position="bottomleft" />
+        <CustomZoomControl />
 
         <MapLayerSelectorControl
           showAmtlicheVermessung={showAmtlicheVermessung}
@@ -2865,6 +2925,7 @@ export default function MapPageV2() {
         onSelect={setObjectInfo}
         onClose={() => setObjectInfo(null)}
         onActivate={() => setIsLayerSelectorOpen(false)}
+        onInfoPanelClick={() => setIsLayerSelectorOpen(false)}
       />
 
       <DummyChatbotWidget />
