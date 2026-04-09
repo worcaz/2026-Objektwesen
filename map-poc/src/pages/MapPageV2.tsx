@@ -50,6 +50,10 @@ const WALDGRENZEN_WMS_URL = 'https://wfs.geodienste.ch/npl_waldgrenzen_v1_2_0/de
 const WALDGRENZEN_LAYERS = 'daten';
 const WALDGRENZEN_ATTRIBUTION = '&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Statische Waldgrenzen';
 
+const NUTZUNGSPLANUNG_WMS_URL = 'https://geodienste.ch/db/npl_nutzungsplanung_v1_2_0/deu';
+const NUTZUNGSPLANUNG_LAYERS = 'daten';
+const NUTZUNGSPLANUNG_ATTRIBUTION = '&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Nutzungsplanung';
+
 const DESKTOP_AUTO_CENTER_MIN_WIDTH = 1024;
 const INFO_PANEL_DESKTOP_WIDTH = 520;
 const INFO_PANEL_LEFT_MARGIN = 24;
@@ -2481,6 +2485,10 @@ function MapLayerSelectorControl({
   onToggleWaldgrenzen,
   waldgrenzenOpacity,
   onChangeWaldgrenzenOpacity,
+  showNutzungsplanung,
+  onToggleNutzungsplanung,
+  nutzungsplanungOpacity,
+  onChangeNutzungsplanungOpacity,
   open,
   onOpenChange,
 }: {
@@ -2496,6 +2504,10 @@ function MapLayerSelectorControl({
   onToggleWaldgrenzen: (next: boolean) => void;
   waldgrenzenOpacity: number;
   onChangeWaldgrenzenOpacity: (next: number) => void;
+  showNutzungsplanung: boolean;
+  onToggleNutzungsplanung: (next: boolean) => void;
+  nutzungsplanungOpacity: number;
+  onChangeNutzungsplanungOpacity: (next: number) => void;
   open: boolean;
   onOpenChange: (next: boolean) => void;
 }) {
@@ -2628,6 +2640,13 @@ function MapLayerSelectorControl({
             onToggleWaldgrenzen,
             waldgrenzenOpacity,
             onChangeWaldgrenzenOpacity,
+          )}
+          {renderLayerRow(
+            'Nutzungsplanung',
+            showNutzungsplanung,
+            onToggleNutzungsplanung,
+            nutzungsplanungOpacity,
+            onChangeNutzungsplanungOpacity,
           )}
         </div>
       )}
@@ -2830,9 +2849,11 @@ export default function MapPageV2() {
   const [showAmtlicheVermessung, setShowAmtlicheVermessung] = useState(true);
   const [showLuftbild, setShowLuftbild] = useState(false);
   const [showWaldgrenzen, setShowWaldgrenzen] = useState(false);
+  const [showNutzungsplanung, setShowNutzungsplanung] = useState(false);
   const [amtlicheVermessungOpacity, setAmtlicheVermessungOpacity] = useState(0.7);
   const [luftbildOpacity, setLuftbildOpacity] = useState(1);
   const [waldgrenzenOpacity, setWaldgrenzenOpacity] = useState(0.9);
+  const [nutzungsplanungOpacity, setNutzungsplanungOpacity] = useState(0.8);
 
   useEffect(() => {
     if (objectInfo) {
@@ -2888,6 +2909,18 @@ export default function MapPageV2() {
           />
         )}
 
+        {showNutzungsplanung && (
+          <WMSTileLayer
+            url={NUTZUNGSPLANUNG_WMS_URL}
+            layers={NUTZUNGSPLANUNG_LAYERS}
+            format="image/png"
+            transparent={true}
+            version="1.3.0"
+            opacity={nutzungsplanungOpacity}
+            attribution={NUTZUNGSPLANUNG_ATTRIBUTION}
+          />
+        )}
+
         <CustomZoomControl />
 
         <MapLayerSelectorControl
@@ -2903,6 +2936,10 @@ export default function MapPageV2() {
           onToggleWaldgrenzen={setShowWaldgrenzen}
           waldgrenzenOpacity={waldgrenzenOpacity}
           onChangeWaldgrenzenOpacity={setWaldgrenzenOpacity}
+          showNutzungsplanung={showNutzungsplanung}
+          onToggleNutzungsplanung={setShowNutzungsplanung}
+          nutzungsplanungOpacity={nutzungsplanungOpacity}
+          onChangeNutzungsplanungOpacity={setNutzungsplanungOpacity}
           open={isLayerSelectorOpen}
           onOpenChange={setIsLayerSelectorOpen}
         />
