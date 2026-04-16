@@ -926,6 +926,60 @@
   font-weight: 700;
 }
 
+/* ── Grundbuch quota gate ─────────────────────────────────── */
+
+.grundbuch-gate {
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #f0f8ff;
+  border: 1px solid #bae0f8;
+  display: grid;
+  gap: 10px;
+}
+
+.grundbuch-gate__text {
+  margin: 0;
+  font-size: 12px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.grundbuch-gate__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.grundbuch-gate__quota {
+  font-size: 11px;
+  color: #6b7280;
+  font-weight: 600;
+}
+
+.grundbuch-gate__btn {
+  border: none;
+  border-radius: 7px;
+  background: rgba(0, 159, 227, 1);
+  color: #fff;
+  font-weight: 700;
+  padding: 7px 14px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.grundbuch-exhausted {
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff3f3;
+  border: 1px solid #f5c5c5;
+  color: #c0392b;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+
 /* ── SearchPanel ─────────────────────────────────────────── */
 
 .search-panel {

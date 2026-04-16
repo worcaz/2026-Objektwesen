@@ -9,6 +9,9 @@ export const AUTH_EVENT_NAME = 'objektwesen-auth-changed';
 export const AUTH_OPEN_LOGIN_EVENT = 'objektwesen-open-login';
 export const USER_ROLE_STORAGE_KEY = 'objektwesen-user-role';
 export const USER_ROLE_EVENT_NAME = 'objektwesen-role-changed';
+export const QUOTA_STORAGE_KEY = 'objektwesen-grundbuch-quota';
+export const QUOTA_RESET_EVENT = 'objektwesen-quota-reset';
+export const QUOTA_MAX = 10;
 export type UserRole = 'buerger' | 'verwaltung';
 
 const NAV_ITEMS = [
@@ -374,6 +377,12 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
                 <button
                   type="button"
                   className="header-reset-btn"
+                  onClick={() => {
+                    if (typeof window !== 'undefined') {
+                      window.sessionStorage.removeItem(QUOTA_STORAGE_KEY);
+                      window.dispatchEvent(new CustomEvent(QUOTA_RESET_EVENT));
+                    }
+                  }}
                 >
                   Reset Abfrage Kontingent
                 </button>

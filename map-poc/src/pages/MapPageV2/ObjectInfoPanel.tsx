@@ -2,7 +2,12 @@ import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
 import { LuDownload, LuFileText, LuGlobe, LuHouse, LuInfo, LuLayers3, LuLock, LuMail, LuPhone, LuSearch, LuX } from 'react-icons/lu';
 import { PiCrane } from 'react-icons/pi';
-import { AUTH_EVENT_NAME, AUTH_OPEN_LOGIN_EVENT, AUTH_STORAGE_KEY } from '../../components/Header';
+import {
+  AUTH_EVENT_NAME, AUTH_OPEN_LOGIN_EVENT, AUTH_STORAGE_KEY,
+  USER_ROLE_STORAGE_KEY, USER_ROLE_EVENT_NAME,
+  QUOTA_STORAGE_KEY, QUOTA_RESET_EVENT, QUOTA_MAX,
+} from '../../components/Header';
+import type { UserRole } from '../../components/Header';
 import type {
   ObjectInfo,
   OwnershipInfo,
@@ -568,6 +573,12 @@ function CollapsibleStringList({ label, entries }: { label: string; entries: str
 
 function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => void }) {
   const [authUser, setAuthUser] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<UserRole>('buerger');
+  const [quotaUsed, setQuotaUsed] = useState<number>(() => {
+    if (typeof window === 'undefined') return 0;
+    return parseInt(window.sessionStorage.getItem(QUOTA_STORAGE_KEY) ?? '0', 10);
+  });
+  const [revealedParcels, setRevealedParcels] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -591,7 +602,45 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
     };
   }, []);
 
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => {
+      const r = window.localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole | null;
+      setUserRole(r ?? 'buerger');
+    };
+    const onRoleChange = (e: Event) => {
+      setUserRole((e as CustomEvent<UserRole>).detail ?? 'buerger');
+    };
+    sync();
+    window.addEventListener(USER_ROLE_EVENT_NAME, onRoleChange);
+    return () => window.removeEventListener(USER_ROLE_EVENT_NAME, onRoleChange);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onReset = () => {
+      setQuotaUsed(0);
+      setRevealedParcels(new Set());
+    };
+    window.addEventListener(QUOTA_RESET_EVENT, onReset);
+    return () => window.removeEventListener(QUOTA_RESET_EVENT, onReset);
+  }, []);
+
   const isAuthenticated = Boolean(authUser);
+
+  const isBuerger = isAuthenticated && userRole === 'buerger';
+  const isRevealed = revealedParcels.has(info.egrid);
+  const quotaExhausted = quotaUsed >= QUOTA_MAX;
+  const quotaRemaining = QUOTA_MAX - quotaUsed;
+
+  const handleAbrufen = () => {
+    const next = quotaUsed + 1;
+    setQuotaUsed(next);
+    if (typeof window !== 'undefined') {
+      window.sessionStorage.setItem(QUOTA_STORAGE_KEY, String(next));
+    }
+    setRevealedParcels(prev => new Set(prev).add(info.egrid));
+  };
 
   const bauprojekteTooltip = (() => {
     const yesterday = new Date();
@@ -654,13 +703,40 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
               .
             </div>
           )}
-          <ProtectedFieldRow label="Eigentümer"                    value={<OwnershipValue info={info.eigentuemer} />} isAuthenticated={isAuthenticated} />
-          <ProtectedFieldRow label="Katasterwert"                  value={info.katasterwert} isAuthenticated={isAuthenticated} />
-          <ProtectedFieldRow label="Dienstbarkeiten / Grundlasten" value={info.dienstbarkeiten.length ? info.dienstbarkeiten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
-          <ProtectedFieldRow label="Anmerkungen"                   value={info.anmerkungen.length ? info.anmerkungen.join(', ') : '—'} isAuthenticated={isAuthenticated} />
-          <ProtectedFieldRow label="Grundpfandrechte"              value={info.grundpfandrechte.length ? info.grundpfandrechte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
-          <ProtectedFieldRow label="Erwerbsarten"                  value={info.erwerbsarten.length ? info.erwerbsarten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
-          <ProtectedFieldRow label="Offene Geschäfte"              value={info.offeneGeschaefte.length ? info.offeneGeschaefte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+
+          {isBuerger && !isRevealed && !quotaExhausted && (
+            <div className="grundbuch-gate">
+              <p className="grundbuch-gate__text">
+                Pro Tag stehen Ihnen als Bürger 10 Grundbuchabfragen zur Verfügung. Das Kontingent wird nach 24 Stunden erneuert.
+              </p>
+              <div className="grundbuch-gate__footer">
+                <span className="grundbuch-gate__quota">
+                  {quotaRemaining} von {QUOTA_MAX} Abfragen verbleibend
+                </span>
+                <button type="button" className="grundbuch-gate__btn" onClick={handleAbrufen}>
+                  Grundbuch-Daten abrufen
+                </button>
+              </div>
+            </div>
+          )}
+
+          {isBuerger && !isRevealed && quotaExhausted && (
+            <div className="grundbuch-exhausted">
+              Sie haben Ihr Abfragekontingent für heute aufgebraucht.
+            </div>
+          )}
+
+          {(!isAuthenticated || !isBuerger || isRevealed) && (
+            <>
+              <ProtectedFieldRow label="Eigentümer"                    value={<OwnershipValue info={info.eigentuemer} />} isAuthenticated={isAuthenticated} />
+              <ProtectedFieldRow label="Katasterwert"                  value={info.katasterwert} isAuthenticated={isAuthenticated} />
+              <ProtectedFieldRow label="Dienstbarkeiten / Grundlasten" value={info.dienstbarkeiten.length ? info.dienstbarkeiten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+              <ProtectedFieldRow label="Anmerkungen"                   value={info.anmerkungen.length ? info.anmerkungen.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+              <ProtectedFieldRow label="Grundpfandrechte"              value={info.grundpfandrechte.length ? info.grundpfandrechte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+              <ProtectedFieldRow label="Erwerbsarten"                  value={info.erwerbsarten.length ? info.erwerbsarten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+              <ProtectedFieldRow label="Offene Geschäfte"              value={info.offeneGeschaefte.length ? info.offeneGeschaefte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+            </>
+          )}
         </Section>
 
         <Section title="Gebäude" infoTooltip={bauprojekteTooltip}>
