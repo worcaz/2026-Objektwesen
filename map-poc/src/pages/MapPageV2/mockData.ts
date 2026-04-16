@@ -1,4 +1,4 @@
-import type { RealParcelProps } from '../wfsService';
+import type { RealParcelProps } from '../../wfsService';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
