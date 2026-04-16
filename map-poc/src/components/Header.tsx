@@ -11,6 +11,7 @@ export const USER_ROLE_STORAGE_KEY = 'objektwesen-user-role';
 export const USER_ROLE_EVENT_NAME = 'objektwesen-role-changed';
 export const QUOTA_STORAGE_KEY = 'objektwesen-grundbuch-quota';
 export const QUOTA_RESET_EVENT = 'objektwesen-quota-reset';
+export const QUOTA_SET_EVENT = 'objektwesen-quota-set';
 export const QUOTA_MAX = 10;
 export type UserRole = 'buerger' | 'verwaltung';
 
@@ -358,34 +359,52 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
                   </button>
                 </div>
 
-                <div className="header-account-menu-role-section">
-                  <div className="header-account-menu-role-label">Ansicht</div>
-                  <div className="header-role-switcher">
-                    {(['buerger', 'verwaltung'] as const).map(role => (
-                      <button
-                        key={role}
-                        type="button"
-                        onClick={() => handleRoleChange(role)}
-                        className={`header-role-btn${userRole === role ? ' header-role-btn--active' : ''}`}
-                      >
-                        {role === 'buerger' ? 'Bürger' : 'Verwaltung'}
-                      </button>
-                    ))}
-                  </div>
-                </div>
+                <div className="header-account-menu-poc-section">
+                  <div className="header-account-menu-poc-label">PoC</div>
 
-                <button
-                  type="button"
-                  className="header-reset-btn"
-                  onClick={() => {
-                    if (typeof window !== 'undefined') {
-                      window.sessionStorage.removeItem(QUOTA_STORAGE_KEY);
-                      window.dispatchEvent(new CustomEvent(QUOTA_RESET_EVENT));
-                    }
-                  }}
-                >
-                  Reset Abfrage Kontingent
-                </button>
+                  <div className="header-account-menu-role-section">
+                    <div className="header-account-menu-role-label">Ich bin...</div>
+                    <div className="header-role-switcher">
+                      {(['buerger', 'verwaltung'] as const).map(role => (
+                        <button
+                          key={role}
+                          type="button"
+                          onClick={() => handleRoleChange(role)}
+                          className={`header-role-btn${userRole === role ? ' header-role-btn--active' : ''}`}
+                        >
+                          {role === 'buerger' ? 'Bürger' : 'Verwaltung'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    className="header-poc-btn"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        window.sessionStorage.removeItem(QUOTA_STORAGE_KEY);
+                        window.dispatchEvent(new CustomEvent(QUOTA_RESET_EVENT));
+                      }
+                    }}
+                  >
+                    Reset Abfrage Kontingent
+                  </button>
+
+                  <button
+                    type="button"
+                    className="header-poc-btn"
+                    onClick={() => {
+                      if (typeof window !== 'undefined') {
+                        const value = QUOTA_MAX - 1;
+                        window.sessionStorage.setItem(QUOTA_STORAGE_KEY, String(value));
+                        window.dispatchEvent(new CustomEvent(QUOTA_SET_EVENT, { detail: value }));
+                      }
+                    }}
+                  >
+                    Setze Grundbuch-Quota = 1
+                  </button>
+                </div>
 
                 <button
                   type="button"
@@ -425,6 +444,7 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
             </Link>
           );
         })}
+
       </nav>
 
       {loginOpen && (

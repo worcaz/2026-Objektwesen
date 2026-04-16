@@ -5,7 +5,7 @@ import { PiCrane } from 'react-icons/pi';
 import {
   AUTH_EVENT_NAME, AUTH_OPEN_LOGIN_EVENT, AUTH_STORAGE_KEY,
   USER_ROLE_STORAGE_KEY, USER_ROLE_EVENT_NAME,
-  QUOTA_STORAGE_KEY, QUOTA_RESET_EVENT, QUOTA_MAX,
+  QUOTA_STORAGE_KEY, QUOTA_RESET_EVENT, QUOTA_SET_EVENT, QUOTA_MAX,
 } from '../../components/Header';
 import type { UserRole } from '../../components/Header';
 import type {
@@ -622,8 +622,16 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
       setQuotaUsed(0);
       setRevealedParcels(new Set());
     };
+    const onSet = (e: Event) => {
+      const value = (e as CustomEvent<number>).detail;
+      setQuotaUsed(value);
+    };
     window.addEventListener(QUOTA_RESET_EVENT, onReset);
-    return () => window.removeEventListener(QUOTA_RESET_EVENT, onReset);
+    window.addEventListener(QUOTA_SET_EVENT, onSet);
+    return () => {
+      window.removeEventListener(QUOTA_RESET_EVENT, onReset);
+      window.removeEventListener(QUOTA_SET_EVENT, onSet);
+    };
   }, []);
 
   const isAuthenticated = Boolean(authUser);
@@ -722,7 +730,16 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
 
           {isBuerger && !isRevealed && quotaExhausted && (
             <div className="grundbuch-exhausted">
-              Sie haben Ihr Abfragekontingent für heute aufgebraucht.
+              Sie haben Ihr Abfragekontingent für heute aufgebraucht.{' '}
+              Eine erneute Abfrage ist in 24 Stunden wieder möglich, {' '}
+              {new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('de-CH', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit',
+              })} Uhr.
             </div>
           )}
 
