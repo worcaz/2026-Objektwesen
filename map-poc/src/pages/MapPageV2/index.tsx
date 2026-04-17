@@ -81,14 +81,14 @@ function ErrorBox({ message, onClose }: { message: string; onClose: () => void }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-// Map center: Aarau, Switzerland (zoom 14).
+// Map center: Aarau, Switzerland (zoom 16).
 const MAP_CENTER: [number, number] = [47.3925, 8.0442];
 
 export default function MapPageV2() {
   const [loading,     setLoading]     = useState(false);
   const [error,       setError]       = useState<string | null>(null);
   const [objectInfo,  setObjectInfo]  = useState<ObjectInfo | null>(null);
-  const [currentZoom, setCurrentZoom] = useState(14);
+  const [currentZoom, setCurrentZoom] = useState(16);
   const [isLayerSelectorOpen, setIsLayerSelectorOpen] = useState(false);
   const [showAmtlicheVermessung, setShowAmtlicheVermessung] = useState(true);
   const [showLuftbild, setShowLuftbild] = useState(false);
@@ -112,7 +112,7 @@ export default function MapPageV2() {
 
       <Header onAccountMenuOpen={() => setIsLayerSelectorOpen(false)} />
 
-      <MapContainer center={MAP_CENTER} zoom={14} zoomControl={false} className="mapv2-container">
+      <MapContainer center={MAP_CENTER} zoom={16} zoomControl={false} className="mapv2-container">
 
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'

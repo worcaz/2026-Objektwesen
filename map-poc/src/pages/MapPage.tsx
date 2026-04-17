@@ -74,7 +74,7 @@ export default function MapPage() {
 
       <MapContainer
         center={MAP_CENTER}
-        zoom={14}
+        zoom={16}
         style={{ width: '100%', flex: 1 }}
       >
         <TileLayer
