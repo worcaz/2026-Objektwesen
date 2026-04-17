@@ -396,13 +396,13 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
                     className="header-poc-btn"
                     onClick={() => {
                       if (typeof window !== 'undefined') {
-                        const value = QUOTA_MAX - 1;
+                        const value = QUOTA_MAX;
                         window.sessionStorage.setItem(QUOTA_STORAGE_KEY, String(value));
                         window.dispatchEvent(new CustomEvent(QUOTA_SET_EVENT, { detail: value }));
                       }
                     }}
                   >
-                    Setze Grundbuch-Quota = 1
+                    Setze Grundbuch-Quota = 0
                   </button>
                 </div>
 

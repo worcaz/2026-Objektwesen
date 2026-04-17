@@ -59,7 +59,7 @@ function ClickHandler({ onMapClick }: { onMapClick: (lat: number, lng: number) =
 
 // ─── MapPage ──────────────────────────────────────────────────────────────────
 
-const MAP_CENTER: [number, number] = [47.0502, 8.3093];
+const MAP_CENTER: [number, number] = [47.3925, 8.0442];
 
 export default function MapPage() {
   const [parcel, setParcel] = useState<ParcelInfo | null>(null);

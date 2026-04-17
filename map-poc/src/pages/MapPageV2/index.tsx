@@ -81,16 +81,8 @@ function ErrorBox({ message, onClose }: { message: string; onClose: () => void }
 
 // ─── App ─────────────────────────────────────────────────────────────────────
 
-// Map center: Lucerne, Switzerland (zoom 14).
-//
-// WFS parcel data note:
-//   The geodienste.ch WFS (ms:RESF) does NOT currently cover Lucerne canton.
-//   Mock parcels are shown at this location.
-//   Navigate to one of these cantons for real WFS data:
-//     • Zug (ZG)              — e.g. 47.17°N, 8.52°E
-//     • Valais (VS)           — e.g. 46.23°N, 7.36°E
-//     • Basel-Landschaft (BL) — e.g. 47.48°N, 7.73°E
-const MAP_CENTER: [number, number] = [47.0502, 8.3093];
+// Map center: Aarau, Switzerland (zoom 14).
+const MAP_CENTER: [number, number] = [47.3925, 8.0442];
 
 export default function MapPageV2() {
   const [loading,     setLoading]     = useState(false);
