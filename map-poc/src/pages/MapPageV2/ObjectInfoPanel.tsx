@@ -715,7 +715,7 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
           {isBuerger && !isRevealed && !quotaExhausted && (
             <div className="grundbuch-gate">
               <p className="grundbuch-gate__text">
-                Pro Tag stehen Ihnen als Bürger 10 Grundbuchabfragen zur Verfügung. Das Kontingent wird nach 24 Stunden erneuert.
+                Pro Tag stehen Ihnen als Bürger 10 Grundbuchabfragen pro Tag zur Verfügung. Das Kontingent wird nach 24 Stunden erneuert.
               </p>
               <div className="grundbuch-gate__footer">
                 <span className="grundbuch-gate__quota">
@@ -731,7 +731,7 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
           {isBuerger && !isRevealed && quotaExhausted && (
             <div className="grundbuch-exhausted">
               Sie haben Ihr Abfragekontingent für heute aufgebraucht.{' '}
-              Eine erneute Abfrage ist in 24 Stunden wieder möglich, {' '}
+              Eine erneute Abfrage ist in 24 Stunden wieder möglich ({' '}
               {new Date(Date.now() + 24 * 60 * 60 * 1000).toLocaleDateString('de-CH', {
                 weekday: 'long',
                 day: 'numeric',
@@ -739,7 +739,7 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
                 year: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-              })} Uhr.
+              })} Uhr).
             </div>
           )}
 
