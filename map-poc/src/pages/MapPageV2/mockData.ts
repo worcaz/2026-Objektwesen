@@ -878,3 +878,31 @@ export function buildSearchResults(query: string): SearchResult[] {
     };
   });
 }
+
+export function buildOwnerSearchResults(query: string): SearchResult[] {
+  const q = query.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const results: SearchResult[] = [];
+
+  DUMMY_OWNERS.forEach((owner, ownerIdx) => {
+    const parties: string[] = owner.beteiligungen
+      ? owner.beteiligungen.flatMap(b => b.parteien.map(p => p.name))
+      : owner.parteien.map(p => p.name);
+
+    const seen = new Set<string>();
+    for (const name of parties) {
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const nameLower = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      if (nameLower.includes(q)) {
+        const info = buildDummyInfo(`owner-${ownerIdx}-${name}`);
+        results.push({
+          label: name,
+          subLabel: `Eigentümer — Grundstück ${info.grundstueckNummer}, ${info.gemeinde}`,
+          info: { ...info, eigentuemer: owner },
+        });
+      }
+    }
+  });
+
+  return results.slice(0, 5);
+}

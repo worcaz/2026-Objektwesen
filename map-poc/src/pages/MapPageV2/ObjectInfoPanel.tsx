@@ -19,7 +19,7 @@ import type {
   ZonenplanEntry,
   SearchResult,
 } from './mockData';
-import { buildSearchResults } from './mockData';
+import { buildSearchResults, buildOwnerSearchResults } from './mockData';
 import ExportSection from './ExportSection';
 
 // ─── Object info panel & search ──────────────────────────────────────────────
@@ -786,12 +786,51 @@ function SearchPanel({
   const [query,        setQuery]        = useState('');
   const [results,      setResults]      = useState<SearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [authUser,     setAuthUser]     = useState<string | null>(() =>
+    typeof window !== 'undefined' ? window.localStorage.getItem(AUTH_STORAGE_KEY) : null
+  );
+  const [userRole,     setUserRole]     = useState<UserRole>(() => {
+    if (typeof window === 'undefined') return 'buerger';
+    return (window.localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole) ?? 'buerger';
+  });
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const syncAuth = () => setAuthUser(window.localStorage.getItem(AUTH_STORAGE_KEY));
+    const onAuthChange = (e: Event) => {
+      const ce = e as CustomEvent<string | null>;
+      setAuthUser(ce.detail ?? window.localStorage.getItem(AUTH_STORAGE_KEY));
+    };
+    syncAuth();
+    window.addEventListener(AUTH_EVENT_NAME, onAuthChange);
+    window.addEventListener('focus', syncAuth);
+    return () => {
+      window.removeEventListener(AUTH_EVENT_NAME, onAuthChange);
+      window.removeEventListener('focus', syncAuth);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sync = () => setUserRole((window.localStorage.getItem(USER_ROLE_STORAGE_KEY) as UserRole) ?? 'buerger');
+    const onRoleChange = (e: Event) => setUserRole((e as CustomEvent<UserRole>).detail ?? 'buerger');
+    sync();
+    window.addEventListener(USER_ROLE_EVENT_NAME, onRoleChange);
+    return () => window.removeEventListener(USER_ROLE_EVENT_NAME, onRoleChange);
+  }, []);
+
+  const isVerwaltung = Boolean(authUser) && userRole === 'verwaltung';
 
   useEffect(() => {
     if (!query.trim()) { setResults([]); setShowDropdown(false); return; }
-    const t = setTimeout(() => { setResults(buildSearchResults(query)); setShowDropdown(true); }, 300);
+    const t = setTimeout(() => {
+      const parcelResults = buildSearchResults(query);
+      const ownerResults = isVerwaltung ? buildOwnerSearchResults(query) : [];
+      setResults([...parcelResults, ...ownerResults]);
+      setShowDropdown(true);
+    }, 300);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, isVerwaltung]);
 
   const hasPanel = objectInfo !== null;
   const showDrop = showDropdown && results.length > 0 && !hasPanel;
@@ -812,7 +851,7 @@ function SearchPanel({
             if (results.length > 0 && !hasPanel) setShowDropdown(true);
           }}
           onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-          placeholder="Grundstück suchen…"
+          placeholder={isVerwaltung ? 'Grundstück oder Eigentümer suchen…' : 'Grundstück suchen…'}
           className="search-input"
           style={{ borderRadius: (showDrop || hasPanel) ? '8px 8px 0 0' : 8 }}
         />
