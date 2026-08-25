@@ -1,4 +1,4 @@
-import { LuDownload } from 'react-icons/lu';
+import { LuDownload, LuTable } from 'react-icons/lu';
 import type { ObjectInfo, OwnershipInfo, OwnerParty, ContactInfo } from './mockData';
 
 function escapeHtml(value: string): string {
@@ -169,17 +169,120 @@ function handleDummyPdfExport(info: ObjectInfo, isAuthenticated: boolean) {
   window.setTimeout(() => popup.print(), 200);
 }
 
+function csvEscape(value: string): string {
+  return `"${value.replace(/"/g, '""')}"`;
+}
+
+function partiesToText(parteien: OwnerParty[]): string {
+  return parteien
+    .map(p => `${p.name} (${p.addresses.map(a => `${a.label}: ${a.value}`).join(', ')})`)
+    .join(' | ');
+}
+
+function ownershipToText(ownerInfo: OwnershipInfo, isAuthenticated: boolean): string {
+  if (!isAuthenticated) return 'Login erforderlich';
+  if (ownerInfo.beteiligungen?.length) {
+    return ownerInfo.beteiligungen
+      .map(b => `${b.grundstueck}${b.anteil ? ` (${b.anteil})` : ''} – ${b.eigentumsform}: ${partiesToText(b.parteien)}`)
+      .join(' / ');
+  }
+  return `${ownerInfo.eigentumsform}: ${partiesToText(ownerInfo.parteien)}`;
+}
+
+function contactToText(contact: ContactInfo): string {
+  return `${contact.office}, ${contact.person}, ${contact.street}, ${contact.city}, ${contact.phone}, ${contact.email}, ${contact.website}`;
+}
+
+function protectedValue(value: string, isAuthenticated: boolean): string {
+  return isAuthenticated ? value : 'Login erforderlich';
+}
+
+function protectedList(values: string[], isAuthenticated: boolean): string {
+  return isAuthenticated ? (values.length ? values.join(' | ') : '—') : 'Login erforderlich';
+}
+
+function handleDummyCsvExport(info: ObjectInfo, isAuthenticated: boolean) {
+  const rows: [string, string][] = [
+    ['EGRID', info.egrid],
+    ['Gemeinde', `${info.gemeinde} (${info.bfsNr})`],
+    ['Grundbuch', info.grundbuchNr],
+    ['Grundstückart', info.grundstueckArt],
+    ['Flurname', info.flurname],
+    ['Fläche', info.flaecheGrundbuch],
+    ['Eigentümer', ownershipToText(info.eigentuemer, isAuthenticated)],
+    ['Katasterwert', protectedValue(info.katasterwert, isAuthenticated)],
+    ['Dienstbarkeiten / Grundlasten', protectedList(info.dienstbarkeiten, isAuthenticated)],
+    ['Anmerkungen', protectedList(info.anmerkungen, isAuthenticated)],
+    ['Grundpfandrechte', protectedList(info.grundpfandrechte, isAuthenticated)],
+    ['Erwerbsarten', protectedList(info.erwerbsarten, isAuthenticated)],
+    ['Offene Geschäfte', protectedList(info.offeneGeschaefte, isAuthenticated)],
+    ['Nachführungsgeometer', contactToText(info.nachfuehrungsgeometer)],
+    ['Grundbuchamt', contactToText(info.grundbuchamtKontakt)],
+  ];
+
+  const lines = ['Feld;Wert', ...rows.map(([label, value]) => `${csvEscape(label)};${csvEscape(value)}`)];
+
+  if (info.gebaeude.length) {
+    info.gebaeude.forEach((g, index) => {
+      lines.push('');
+      lines.push(`Gebäude ${index + 1}`);
+      const buildingRows: [string, string][] = [
+        ['Nr.', g.nr],
+        ['Versicherungs-Nr.', g.versicherungsNr || '—'],
+        ['Baujahr / Bauperiode', g.baujahrBauperiode || '—'],
+        ['Gebäudekategorie', g.gebaeudekategorie || '—'],
+        ['Gebäudestatus', g.gebaeudestatus || '—'],
+        ['Adresse', g.adresse || '—'],
+        ['Koordinaten', g.koordinaten || '—'],
+        ['EGID', g.egid],
+        ['Verwaltung Gebäude', protectedValue(g.verwaltungGebaeude || '—', isAuthenticated)],
+        ['Versicherungswert', protectedValue(g.versicherungswert || '—', isAuthenticated)],
+        ['Anzahl Wohnungen', protectedValue(g.anzahlWohnungen || '—', isAuthenticated)],
+      ];
+      for (const [label, value] of buildingRows) {
+        lines.push(`${csvEscape(label)};${csvEscape(value)}`);
+      }
+    });
+  }
+
+  if (info.bauprojekte.length) {
+    lines.push('');
+    lines.push('Bauprojekte');
+    lines.push(['Dossier', 'Bezeichnung', 'Status'].map(csvEscape).join(';'));
+    for (const p of info.bauprojekte) {
+      lines.push([p.dossierNr, p.bezeichnung, p.status].map(csvEscape).join(';'));
+    }
+  }
+
+  const csvContent = '﻿' + lines.join('\r\n');
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `grundstueck-${info.grundstueckNummer}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 export default function ExportSection({ info, isAuthenticated }: { info: ObjectInfo; isAuthenticated: boolean }) {
   return (
     <div className="export-section">
       <span className="export-section__desc">
-        Exportiere alle aktuell verfügbaren Grundstücksdaten als PDF über den Browser-Druckdialog.
+        Exportiere alle aktuell verfügbaren Grundstücksdaten als PDF über den Browser-Druckdialog oder als CSV-Datei.
       </span>
       <button
         onClick={() => handleDummyPdfExport(info, isAuthenticated)}
         className="export-btn"
       >
         <LuDownload size={14} /> Als PDF exportieren
+      </button>
+      <button
+        onClick={() => handleDummyCsvExport(info, isAuthenticated)}
+        className="export-btn"
+      >
+        <LuTable size={14} /> Als CSV exportieren
       </button>
     </div>
   );
