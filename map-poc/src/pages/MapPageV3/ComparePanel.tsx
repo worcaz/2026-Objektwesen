@@ -39,10 +39,10 @@ function CompareCell({ row, idx, baseIdx }: { row: CmpRow; idx: number; baseIdx:
     <td className={changed ? 'cmp-cell cmp-cell--changed' : 'cmp-cell'}>
       {cell.lines.length === 0 && removed.length === 0 && <span className="cmp-empty">–</span>}
       {cell.lines.map(l => (
-        <div key={l} className={!isBase && !base.absent && !base.lines.includes(l) ? 'cmp-item cmp-item--added' : 'cmp-item'}><LineLabel row={row} line={l} /></div>
+        <div key={l} className={!isBase && !base.absent && !base.lines.includes(l) ? 'cmp-item cmp-item--added' : 'cmp-item'}>{l}</div>
       ))}
       {removed.map(l => (
-        <div key={l} className="cmp-item cmp-item--removed" title="Im Vergleichsstand vorhanden, hier nicht"><LineLabel row={row} line={l} /></div>
+        <div key={l} className="cmp-item cmp-item--removed" title="Im Vergleichsstand vorhanden, hier nicht">{l}</div>
       ))}
     </td>
   );
