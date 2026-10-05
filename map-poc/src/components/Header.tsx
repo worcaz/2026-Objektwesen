@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { LuHouse, LuLayers3, LuX } from 'react-icons/lu';
+import { LuHistory, LuHouse, LuLayers3, LuX } from 'react-icons/lu';
 import './Header.css';
 
 const AGOV_ACCESS_APP_ICON_URL = '/icons_agov.svg';
@@ -18,6 +18,7 @@ export type UserRole = 'buerger' | 'verwaltung';
 const NAV_ITEMS = [
   { path: '/', label: 'Startseite', icon: <LuHouse size={15} /> },
   { path: '/mapv2', label: 'Objektwesen v2 Mockup', icon: <LuLayers3 size={15} /> },
+  { path: '/mapv3', label: 'Objektwesen v3 Historischer Vergleich', icon: <LuHistory size={15} /> },
 ];
 
 function DummyQrCode({ size = 196 }: { size?: number }) {

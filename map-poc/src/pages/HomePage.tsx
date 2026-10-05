@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LuFileText, LuLayers3 } from 'react-icons/lu';
+import { LuFileText, LuHistory, LuLayers3 } from 'react-icons/lu';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 
@@ -26,6 +26,14 @@ const MOCKUPS: MockupEntry[] = [
       'Interaktive UX-Mockup mit Leaflet, inklusive Karteninteraktion, Seitenpanel und responsivem Layout.',
 icon: <LuLayers3 size={28} strokeWidth={1.9} />,
     status: 'ready',
+  },
+  {
+    path: '/mapv3',
+    title: 'Objektwesen v0.3 Mockup',
+    description:
+      'Historischer Vergleich: heutigen Stand mit früheren Ständen eines Grundstücks vergleichen und beliebige Stichtage wählen.',
+    icon: <LuHistory size={28} strokeWidth={1.9} />,
+    status: 'wip',
   },
 ];
 
