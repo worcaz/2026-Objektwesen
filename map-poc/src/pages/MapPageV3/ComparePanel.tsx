@@ -1,7 +1,8 @@
 import { useMemo, useState } from 'react';
-import { LuCalendarPlus, LuX, LuHistory } from 'react-icons/lu';
+import { LuCalendarPlus, LuX, LuHistory, LuChevronDown, LuChevronRight } from 'react-icons/lu';
 import type { ObjectInfo } from '../MapPageV2/mockData';
-import type { Snapshot } from './historyData';
+import type { CmpRow } from './compareModel';
+import { buildGroups, cellChanged, rowChanged } from './compareModel';
 import {
   TODAY_ISO, MIN_STICHTAG, buildHistory, snapshotAt, formatDate, yearsAgoIso,
 } from './historyData';
@@ -9,46 +10,27 @@ import {
 const MAX_COLUMNS = 4;
 const PRESETS = [1, 5, 10, 20, 30];
 
-type RowDef =
-  | { key: keyof Snapshot; label: string; kind: 'scalar' }
-  | { key: keyof Snapshot; label: string; kind: 'list' };
+function CompareCell({ row, idx, baseIdx }: { row: CmpRow; idx: number; baseIdx: number }) {
+  const cell = row.cells[idx];
+  const base = row.cells[baseIdx];
+  const isBase = idx === baseIdx;
+  const changed = !isBase && cellChanged(cell, base);
 
-const ROWS: RowDef[] = [
-  { key: 'eigentuemer',      label: 'Eigentümer',          kind: 'list' },
-  { key: 'eigentumsform',    label: 'Eigentumsform',       kind: 'scalar' },
-  { key: 'flaeche',          label: 'Fläche (Grundbuch)',  kind: 'scalar' },
-  { key: 'grundstueckArt',   label: 'Grundstückart',       kind: 'scalar' },
-  { key: 'katasterwert',     label: 'Katasterwert',        kind: 'scalar' },
-  { key: 'zonenplan',        label: 'Grundnutzung',        kind: 'list' },
-  { key: 'bodenbedeckung',   label: 'Bodenbedeckung',      kind: 'list' },
-  { key: 'gebaeude',         label: 'Gebäude',             kind: 'list' },
-  { key: 'dienstbarkeiten',  label: 'Dienstbarkeiten',     kind: 'list' },
-  { key: 'grundpfandrechte', label: 'Grundpfandrechte',    kind: 'list' },
-  { key: 'anmerkungen',      label: 'Anmerkungen',         kind: 'list' },
-];
-
-function asList(v: Snapshot[keyof Snapshot]): string[] {
-  return Array.isArray(v) ? v : [String(v)];
-}
-
-function CompareCell({ row, snap, base, isBase }: { row: RowDef; snap: Snapshot; base: Snapshot; isBase: boolean }) {
-  if (row.kind === 'scalar') {
-    const val = String(snap[row.key]);
-    const changed = !isBase && val !== String(base[row.key]);
-    return <td className={changed ? 'cmp-cell cmp-cell--changed' : 'cmp-cell'}>{val}</td>;
+  if (cell.absent) {
+    return <td className={changed ? 'cmp-cell cmp-cell--changed' : 'cmp-cell'}><span className="cmp-empty">nicht vorhanden</span></td>;
   }
-  const items = asList(snap[row.key]);
-  const baseItems = asList(base[row.key]);
-  const removed = isBase ? [] : baseItems.filter(i => !items.includes(i));
-  const hasChange = !isBase && (removed.length > 0 || items.some(i => !baseItems.includes(i)));
+  if (row.kind === 'scalar') {
+    return <td className={changed ? 'cmp-cell cmp-cell--changed' : 'cmp-cell'}>{cell.lines[0]}</td>;
+  }
+  const removed = isBase || base.absent ? [] : base.lines.filter(l => !cell.lines.includes(l));
   return (
-    <td className={hasChange ? 'cmp-cell cmp-cell--changed' : 'cmp-cell'}>
-      {items.length === 0 && removed.length === 0 && <span className="cmp-empty">–</span>}
-      {items.map(i => (
-        <div key={i} className={!isBase && !baseItems.includes(i) ? 'cmp-item cmp-item--added' : 'cmp-item'}>{i}</div>
+    <td className={changed ? 'cmp-cell cmp-cell--changed' : 'cmp-cell'}>
+      {cell.lines.length === 0 && removed.length === 0 && <span className="cmp-empty">–</span>}
+      {cell.lines.map(l => (
+        <div key={l} className={!isBase && !base.absent && !base.lines.includes(l) ? 'cmp-item cmp-item--added' : 'cmp-item'}>{l}</div>
       ))}
-      {removed.map(i => (
-        <div key={i} className="cmp-item cmp-item--removed" title="Im Vergleichsstand vorhanden, hier nicht">{i}</div>
+      {removed.map(l => (
+        <div key={l} className="cmp-item cmp-item--removed" title="Im Vergleichsstand vorhanden, hier nicht">{l}</div>
       ))}
     </td>
   );
@@ -65,7 +47,12 @@ export default function ComparePanel({ info }: { info: ObjectInfo }) {
   const sorted = useMemo(() => [...new Set(dates)].sort().reverse(), [dates]);
   const effectiveBase = sorted.includes(baseDate) ? baseDate : sorted[0];
   const snaps = useMemo(() => sorted.map(d => snapshotAt(history, d)), [sorted, history]);
-  const base = snaps[sorted.indexOf(effectiveBase)];
+  const baseIdx = sorted.indexOf(effectiveBase);
+  const base = snaps[baseIdx];
+  const groups = useMemo(() => buildGroups(snaps.map(s => s.info)), [snaps]);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  const toggleGroup = (id: string) =>
+    setCollapsed(prev => { const n = new Set(prev); if (n.has(id)) n.delete(id); else n.add(id); return n; });
 
   const addDate = (iso: string) => {
     if (!iso || iso > TODAY_ISO || iso < MIN_STICHTAG) return;
@@ -74,10 +61,21 @@ export default function ComparePanel({ info }: { info: ObjectInfo }) {
   const removeDate = (iso: string) => setDates(prev => (prev.length > 1 ? prev.filter(d => d !== iso) : prev));
   const full = sorted.length >= MAX_COLUMNS;
 
-  const visibleRows = ROWS.filter(row => {
-    if (!onlyChanges) return true;
-    return snaps.some(s => JSON.stringify(s[row.key]) !== JSON.stringify(base[row.key]));
-  });
+  // Rows to show per group; sub-headings only when a row of their block is visible.
+  const visibleGroups = groups
+    .map(g => {
+      const rows: CmpRow[] = [];
+      let pendingSub: CmpRow | null = null;
+      for (const r of g.rows) {
+        if (r.kind === 'sub') { pendingSub = r; continue; }
+        if (onlyChanges && !rowChanged(r, baseIdx)) continue;
+        if (pendingSub) { rows.push(pendingSub); pendingSub = null; }
+        rows.push(r);
+      }
+      const changes = g.rows.filter(r => rowChanged(r, baseIdx)).length;
+      return { ...g, rows, changes };
+    })
+    .filter(g => !onlyChanges || g.rows.length > 0);
 
   return (
     <div className="cmp">
@@ -161,15 +159,35 @@ export default function ComparePanel({ info }: { info: ObjectInfo }) {
             </tr>
           </thead>
           <tbody>
-            {visibleRows.map(row => (
-              <tr key={row.key}>
-                <th scope="row" className="cmp-rowlabel">{row.label}</th>
-                {snaps.map(s => (
-                  <CompareCell key={s.stichtag} row={row} snap={s} base={base} isBase={s.stichtag === effectiveBase} />
-                ))}
-              </tr>
-            ))}
-            {visibleRows.length === 0 && (
+            {visibleGroups.map(g => {
+              const isCollapsed = collapsed.has(g.id);
+              return [
+                <tr key={g.id} className="cmp-grouprow" onClick={() => toggleGroup(g.id)}>
+                  <th colSpan={snaps.length + 1} scope="colgroup" className="cmp-group">
+                    <span className="cmp-group__inner">
+                      {isCollapsed ? <LuChevronRight size={15} /> : <LuChevronDown size={15} />}
+                      {g.title}
+                      {g.changes > 0 && (
+                        <span className="cmp-group__badge">{g.changes} {g.changes === 1 ? 'Änderung' : 'Änderungen'}</span>
+                      )}
+                    </span>
+                  </th>
+                </tr>,
+                ...(isCollapsed ? [] : g.rows.map(row =>
+                  row.kind === 'sub' ? (
+                    <tr key={row.id} className="cmp-subrow">
+                      <th colSpan={snaps.length + 1} scope="colgroup" className="cmp-sub">{row.label}</th>
+                    </tr>
+                  ) : (
+                    <tr key={row.id}>
+                      <th scope="row" className="cmp-rowlabel">{row.label}</th>
+                      {snaps.map((s, i) => <CompareCell key={s.stichtag} row={row} idx={i} baseIdx={baseIdx} />)}
+                    </tr>
+                  ),
+                )),
+              ];
+            })}
+            {visibleGroups.length === 0 && (
               <tr><td className="cmp-cell" colSpan={snaps.length + 1}>Zwischen den gewählten Stichtagen gibt es keine Unterschiede.</td></tr>
             )}
           </tbody>

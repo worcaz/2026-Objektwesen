@@ -11,7 +11,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: clamp(460px, 50vw, 820px) 1fr;
+  grid-template-columns: clamp(460px, 58vw, 960px) 1fr;
 }
 
 .mapv3-panel {
@@ -87,12 +87,12 @@
 .cmp-legend { display: inline-flex; gap: 6px; font-size: 11px; }
 .cmp-legend__sw { padding: 1px 6px; border-radius: 4px; }
 
-.cmp-scroll { overflow-x: auto; border: 1px solid #e5e7eb; border-radius: 8px; }
+.cmp-scroll { overflow: auto; max-height: 68vh; border: 1px solid #e5e7eb; border-radius: 8px; }
 .cmp-table { border-collapse: collapse; width: 100%; min-width: 100%; font-size: 13px; }
 .cmp-th, .cmp-rowlabel, .cmp-cell { padding: 8px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid #f1f5f9; }
-.cmp-th { min-width: 150px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; vertical-align: bottom; }
+.cmp-th { min-width: 140px; background: #f9fafb; border-bottom: 1px solid #e5e7eb; vertical-align: bottom; position: sticky; top: 0; z-index: 2; }
 .cmp-th--label, .cmp-rowlabel { position: sticky; left: 0; z-index: 1; min-width: 110px; width: 110px; }
-.cmp-th--label { background: #f9fafb; }
+.cmp-th--label { background: #f9fafb; z-index: 3; }
 .cmp-rowlabel { background: #fff; font-weight: 600; color: #4b5563; font-size: 12px; border-right: 1px solid #f1f5f9; }
 .cmp-th--base { box-shadow: inset 0 -3px 0 #009fe3; }
 .cmp-th__date { font-weight: 700; font-size: 14px; }
@@ -126,3 +126,9 @@
   .mapv3-panel { box-shadow: 0 -4px 14px rgba(0, 0, 0, 0.1); }
   .cmp-th { min-width: 130px; }
 }
+
+.cmp-grouprow { cursor: pointer; }
+.cmp-group { padding: 8px 10px; text-align: left; background: #eef6fb; border-bottom: 1px solid #dbe9f3; position: sticky; left: 0; }
+.cmp-group__inner { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #0b6d99; }
+.cmp-group__badge { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 11px; background: #fef3c7; color: #92400e; border-radius: 999px; padding: 1px 8px; }
+.cmp-sub { padding: 6px 10px; text-align: left; background: #f9fafb; font-size: 12px; font-weight: 700; color: #374151; border-bottom: 1px solid #eef0f3; position: sticky; left: 0; }
