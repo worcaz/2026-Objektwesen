@@ -21,22 +21,12 @@ export interface ParcelHistory {
   states: ObjectInfo[];
 }
 
-/** Comparable, display-ready snapshot of one Stichtag. */
+/** Full object state at one Stichtag. */
 export interface Snapshot {
   stichtag: string;
-  flaeche: string;
-  grundstueckArt: string;
-  eigentumsform: string;
-  eigentuemer: string[];
-  katasterwert: string;
-  zonenplan: string[];
-  bodenbedeckung: string[];
-  gebaeude: string[];
-  dienstbarkeiten: string[];
-  grundpfandrechte: string[];
-  anmerkungen: string[];
-  /** Index into ParcelHistory.states, used to label the version */
+  /** Index into ParcelHistory.states, used to tell whether two Stichtage share the same version */
   stateIndex: number;
+  info: ObjectInfo;
 }
 
 export const TODAY_ISO = new Date().toISOString().slice(0, 10);
@@ -73,7 +63,7 @@ const TEMPLATES: EventTemplate[] = [
   {
     title: 'Handänderung',
     describe: (cur, prev) => `Eigentümerwechsel: ${ownerNames(prev).join(', ') || '–'} → ${ownerNames(cur).join(', ') || '–'}`,
-    revert: (a, alt) => ({ ...a, eigentuemer: alt.eigentuemer }),
+    revert: (a, alt) => ({ ...a, eigentuemer: alt.eigentuemer, erwerbsarten: alt.erwerbsarten }),
     applicable: (a, alt) => ownerNames(a).join() !== ownerNames(alt).join(),
   },
   {
@@ -126,6 +116,70 @@ const TEMPLATES: EventTemplate[] = [
     revert: a => ({ ...a, dienstbarkeiten: a.dienstbarkeiten.slice(0, -1) }),
     applicable: a => a.dienstbarkeiten.length > 0,
   },
+  {
+    title: 'Umbau / Neubewertung Gebäude',
+    describe: (cur, prev) =>
+      `Gebäude ${cur.gebaeude[0]?.nr}: Versicherungswert ${prev.gebaeude[0]?.versicherungswert} → ${cur.gebaeude[0]?.versicherungswert}, ` +
+      `Wohnungen ${prev.gebaeude[0]?.anzahlWohnungen} → ${cur.gebaeude[0]?.anzahlWohnungen}`,
+    revert: (a, _alt, h) => ({
+      ...a,
+      gebaeude: a.gebaeude.map((g, i) => i !== 0 ? g : {
+        ...g,
+        versicherungswert: `CHF ${Math.round(parseArea(g.versicherungswert) * (0.7 + (h % 20) / 100) / 1000) * 1000}`
+          .replace(/\B(?=(\d{3})+(?!\d))/g, "'"),
+        anzahlWohnungen: String(Math.max(0, parseArea(g.anzahlWohnungen) - 1)),
+      }),
+    }),
+    applicable: a => a.gebaeude.length > 0 && parseArea(a.gebaeude[0].anzahlWohnungen) > 0,
+  },
+  {
+    title: 'Bauprojekt abgeschlossen',
+    describe: (cur, prev) => {
+      const added = cur.bauprojekte.find(p => !prev.bauprojekte.some(x => x.dossierNr === p.dossierNr));
+      return added ? `Projekt «${added.bezeichnung}» (${added.dossierNr}) erfasst` : 'Bauprojekt erfasst';
+    },
+    revert: a => ({ ...a, bauprojekte: a.bauprojekte.slice(0, -1) }),
+    applicable: a => a.bauprojekte.length > 1,
+  },
+  {
+    title: 'Gemeindefusion / Gebietsänderung',
+    describe: (cur, prev) => `Gemeinde ${prev.gemeinde} (${prev.bfsNr}) → ${cur.gemeinde} (${cur.bfsNr}), Grundbuch ${prev.grundbuchNr} → ${cur.grundbuchNr}`,
+    revert: (a, alt) => ({ ...a, gemeinde: alt.gemeinde, bfsNr: alt.bfsNr, grundbuchNr: alt.grundbuchNr }),
+    applicable: (a, alt) => a.gemeinde !== alt.gemeinde,
+  },
+  {
+    title: 'Flurnamen-Anpassung',
+    describe: (cur, prev) => `Flurname ${prev.flurname} → ${cur.flurname}`,
+    revert: (a, alt) => ({ ...a, flurname: alt.flurname }),
+    applicable: (a, alt) => a.flurname !== alt.flurname,
+  },
+  {
+    title: 'Wechsel Nachführungsgeometer',
+    describe: (cur, prev) => `${prev.nachfuehrungsgeometer.office} → ${cur.nachfuehrungsgeometer.office}`,
+    revert: (a, alt) => ({ ...a, nachfuehrungsgeometer: alt.nachfuehrungsgeometer }),
+    applicable: (a, alt) => a.nachfuehrungsgeometer.office !== alt.nachfuehrungsgeometer.office,
+  },
+  {
+    title: 'Neuorganisation Grundbuchamt',
+    describe: (cur, prev) => `${prev.grundbuchamtKontakt.office} → ${cur.grundbuchamtKontakt.office}`,
+    revert: (a, alt) => ({ ...a, grundbuchamtKontakt: alt.grundbuchamtKontakt }),
+    applicable: (a, alt) => a.grundbuchamtKontakt.office !== alt.grundbuchamtKontakt.office,
+  },
+  {
+    title: 'Grundbuchgeschäft abgeschlossen',
+    describe: (cur, prev) => `Offene Geschäfte: ${prev.offeneGeschaefte.length} → ${cur.offeneGeschaefte.length}`,
+    revert: (a, alt) => ({ ...a, offeneGeschaefte: alt.offeneGeschaefte }),
+    applicable: (a, alt) => a.offeneGeschaefte.join() !== alt.offeneGeschaefte.join(),
+  },
+  {
+    title: 'Anmerkung eingetragen',
+    describe: (cur, prev) => {
+      const added = cur.anmerkungen.find(x => !prev.anmerkungen.includes(x));
+      return added ? `Neu: ${added}` : 'Anmerkung eingetragen';
+    },
+    revert: a => ({ ...a, anmerkungen: a.anmerkungen.slice(0, -1) }),
+    applicable: a => a.anmerkungen.length > 0,
+  },
 ];
 
 export function buildHistory(info: ObjectInfo): ParcelHistory {
@@ -133,13 +187,13 @@ export function buildHistory(info: ObjectInfo): ParcelHistory {
   const h = hashStr(seed);
 
   // Event dates, newest first, strictly decreasing.
-  const eventCount = 4 + (h % 3);
+  const eventCount = 7 + (h % 4);
   let year = new Date().getFullYear() - 1 - (h % 2);
   const dates: string[] = [];
   for (let i = 0; i < eventCount; i++) {
     const hh = hashStr(seed + 'd' + i);
     dates.push(`${year}-${pad(1 + (hh % 12))}-${pad(1 + ((hh >> 3) % 28))}`);
-    year -= 2 + (hh % 5);
+    year -= 1 + (hh % 4);
     if (year < EARLIEST_YEAR) break;
   }
 
@@ -156,7 +210,7 @@ export function buildHistory(info: ObjectInfo): ParcelHistory {
       if (!used.has(cand) && TEMPLATES[cand].applicable(after, alt)) { idx = cand; break; }
       if (tries === TEMPLATES.length - 1) idx = -1;
     }
-    if (idx === -1) idx = 2; // Mutation is always applicable
+    if (idx === -1) idx = 2; // Mutation is always applicable (may repeat)
     used.add(idx);
     const tpl = TEMPLATES[idx];
     const before = tpl.revert(after, alt, hashStr(seed + 'r' + i));
@@ -184,22 +238,7 @@ export function stateIndexAt(history: ParcelHistory, isoDate: string): number {
 
 export function snapshotAt(history: ParcelHistory, isoDate: string): Snapshot {
   const stateIndex = stateIndexAt(history, isoDate);
-  const s = history.states[stateIndex];
-  return {
-    stichtag: isoDate,
-    stateIndex,
-    flaeche: s.flaecheGrundbuch,
-    grundstueckArt: s.grundstueckArt,
-    eigentumsform: s.eigentuemer.eigentumsform,
-    eigentuemer: ownerNames(s),
-    katasterwert: s.katasterwert,
-    zonenplan: s.grundnutzungZonenplan.map(z => `${z.zonentyp} (${z.flaeche})`),
-    bodenbedeckung: s.bodenbedeckung.map(b => `${b.label} (${b.area})`),
-    gebaeude: s.gebaeude.map(g => `${g.gebaeudekategorie} ${g.nr}, Bj. ${g.baujahrBauperiode}`),
-    dienstbarkeiten: s.dienstbarkeiten,
-    grundpfandrechte: s.grundpfandrechte,
-    anmerkungen: s.anmerkungen,
-  };
+  return { stichtag: isoDate, stateIndex, info: history.states[stateIndex] };
 }
 
 export function formatDate(iso: string): string {
