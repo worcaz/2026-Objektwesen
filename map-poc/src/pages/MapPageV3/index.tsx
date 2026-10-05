@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
-import { LuSearch, LuX, LuHistory } from 'react-icons/lu';
+import type { Geometry } from 'geojson';
+import { LuSearch, LuX, LuHistory, LuLayers, LuChevronUp } from 'react-icons/lu';
 import { TbLoaderQuarter } from 'react-icons/tb';
 import 'leaflet/dist/leaflet.css';
 import '../MapPageV2/MapPageV2.css';
@@ -10,8 +11,7 @@ import Header from '../../components/Header';
 import { CustomZoomControl } from '../MapPageV2/MapLayerSelectorControl';
 import ParcelLayer from '../MapPageV2/ParcelLayer';
 import type { ObjectInfo, SearchResult } from '../MapPageV2/mockData';
-import { buildDummyInfo, buildSearchResults, infoFromParcel } from '../MapPageV2/mockData';
-import ComparePanel from './ComparePanel';
+import { buildSearchResults, infoFromParcel } from '../MapPageV2/mockData';
 import ViewModeSwitcher from '../MapPageV2/ViewModeSwitcher';
 import DataPanelResizer from '../MapPageV2/DataPanelResizer';
 import type { ViewMode } from '../MapPageV2/viewMode';
@@ -19,15 +19,17 @@ import {
   VIEW_MODE_STORAGE_KEY, isViewMode,
   DATA_PANEL_WIDTH_STORAGE_KEY, DATA_PANEL_DEFAULT_WIDTH,
 } from '../MapPageV2/viewMode';
-
-// Example parcel for the empty state: Grundstück 3814 in Schötz (matches the v2 mockup data).
-const EXAMPLE_INFO: ObjectInfo = {
-  ...buildDummyInfo('80698814', '3814', 'CH000080698814'),
-  flurname: 'Allmend',
-  flaecheGrundbuch: "1'414 m²",
-};
+import ComparePanel, { MAX_COLUMNS } from './ComparePanel';
+import HistoricMapLayers from './HistoricMapLayers';
+import { EXAMPLE_INFO, infoFromRef, refOf } from './parcelRef';
+import { TODAY_ISO, buildHistory, snapshotAt, formatDate, yearsAgoIso } from './historyData';
+import type { ParcelRef } from './historyData';
+import type { CompareMode } from './urlState';
+import { parseState, serializeState } from './urlState';
 
 const MAP_CENTER: [number, number] = [47.3925, 8.0442];
+
+const parseArea = (a: string) => Number(a.replace(/[^\d]/g, '')) || 0;
 
 function MapResizer({ trigger }: { trigger: string }) {
   const map = useMap();
@@ -38,11 +40,45 @@ function MapResizer({ trigger }: { trigger: string }) {
   return null;
 }
 
+// Initial state: URL (shared link) wins over defaults.
+const initial = (() => {
+  const s = typeof window !== 'undefined' ? parseState(window.location.search) : {};
+  const dates = s.dates ?? [TODAY_ISO, yearsAgoIso(10)];
+  const sorted = [...dates].sort().reverse();
+  return {
+    parcels: (s.parcels ?? []).map(infoFromRef) as ObjectInfo[],
+    mode: s.mode ?? ('zeit' as CompareMode),
+    dates,
+    baseDate: s.baseDate && dates.includes(s.baseDate) ? s.baseDate : sorted[0],
+    pDate: s.pDate ?? TODAY_ISO,
+    view: s.view,
+  };
+})();
+
 export default function MapPageV3() {
-  const [objectInfo, setObjectInfo] = useState<ObjectInfo | null>(null);
+  const [parcels, setParcels] = useState<ObjectInfo[]>(initial.parcels);
+  const [geometry, setGeometry] = useState<Geometry | null>(null);
+  const [focusToken, setFocusToken] = useState(initial.parcels.length ? 1 : 0);
+  const [mode, setMode] = useState<CompareMode>(initial.mode);
+  const [dates, setDates] = useState<string[]>(initial.dates);
+  const [baseDate, setBaseDate] = useState<string>(initial.baseDate);
+  const [pDate, setPDate] = useState<string>(initial.pDate);
+
+  // Map: Kartenstand (historic imagery / outlines)
+  const [mapDate, setMapDate] = useState<string>(() => {
+    const sorted = [...initial.dates].sort().reverse();
+    return sorted[1] ?? sorted[0];
+  });
+  const [showAerial, setShowAerial] = useState(false);
+  const [blend, setBlend] = useState(60);
+  const [showOutlines, setShowOutlines] = useState(true);
+  const [mapPanelOpen, setMapPanelOpen] = useState(true);
+  const [aerialStatus, setAerialStatus] = useState<string | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    if (initial.view) return initial.view;
     try {
       const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
       return isViewMode(stored) ? stored : 'hybrid';
@@ -68,13 +104,11 @@ export default function MapPageV3() {
     try { window.localStorage.setItem(DATA_PANEL_WIDTH_STORAGE_KEY, String(dataPanelWidth)); } catch { /* ignore */ }
   }, [dataPanelWidth]);
 
+  // Search
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-
-  // Set when the query was filled programmatically (selection), so no new dropdown opens.
   const skipSearchRef = useRef(false);
-
   useEffect(() => {
     if (skipSearchRef.current) { skipSearchRef.current = false; return; }
     if (!query.trim()) { setResults([]); return; }
@@ -82,11 +116,85 @@ export default function MapPageV3() {
     return () => clearTimeout(t);
   }, [query]);
 
-  const select = (info: ObjectInfo, label?: string) => {
-    setObjectInfo(info);
+  const primary = parcels[0] ?? null;
+
+  // Keep the map date valid when Stichtage change.
+  useEffect(() => {
+    const options = [...new Set(dates)];
+    if (!options.includes(mapDate)) setMapDate([...options].sort().reverse()[1] ?? options[0]);
+  }, [dates, mapDate]);
+
+  // ── Selection logic ──
+  const selectParcel = useCallback((info: ObjectInfo, geom: Geometry | null, focus: boolean) => {
+    setParcels(prev => {
+      if (mode === 'parzellen' && prev.length > 0) {
+        if (prev.some(x => x.egrid === info.egrid)) return prev;
+        return prev.length >= MAX_COLUMNS ? prev : [...prev, info];
+      }
+      return [info];
+    });
+    if (mode !== 'parzellen' || parcels.length === 0) {
+      setGeometry(geom);
+      if (focus) setFocusToken(t => t + 1);
+    }
+  }, [mode, parcels.length]);
+
+  const selectFromSearch = (info: ObjectInfo, label?: string) => {
     setShowDropdown(false);
     if (label !== undefined) { skipSearchRef.current = true; setQuery(label); setResults([]); }
+    selectParcel(info, null, true);
   };
+
+  const closePanel = () => { setParcels([]); setGeometry(null); setQuery(''); };
+
+  const removeParcel = (egrid: string) => {
+    setParcels(prev => {
+      const next = prev.filter(x => x.egrid !== egrid);
+      if (prev[0]?.egrid === egrid) setGeometry(null);
+      return next.length ? next : prev;
+    });
+  };
+
+  const addParcelRef = (ref: ParcelRef) => {
+    setMode('parzellen');
+    setParcels(prev => (prev.some(x => x.egrid === ref.egrid) || prev.length >= MAX_COLUMNS ? prev : [...prev, infoFromRef(ref)]));
+  };
+
+  // ── Share link / URL state ──
+  const shareState = useMemo(() => ({
+    parcels: parcels.map(refOf), mode, dates, baseDate, pDate, view: viewMode,
+  }), [parcels, mode, dates, baseDate, pDate, viewMode]);
+
+  useEffect(() => {
+    const qs = parcels.length ? `?${serializeState(shareState)}` : window.location.pathname;
+    window.history.replaceState(null, '', parcels.length ? `${window.location.pathname}${qs}` : qs);
+  }, [shareState, parcels.length]);
+
+  const copyLink = async (): Promise<boolean> => {
+    const url = `${window.location.origin}${window.location.pathname}?${serializeState(shareState)}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      return true;
+    } catch {
+      window.prompt('Link zum Kopieren:', url);
+      return false;
+    }
+  };
+
+  // ── Map: area at the chosen Kartenstand ──
+  const areas = useMemo(() => {
+    if (!primary) return { now: 0, then: 0 };
+    const h = buildHistory(primary);
+    return {
+      now: parseArea(primary.flaecheGrundbuch),
+      then: parseArea(snapshotAt(h, mapDate).info.flaecheGrundbuch),
+    };
+  }, [primary, mapDate]);
+
+  const mapDateOptions = [...new Set(dates)].sort().reverse();
+  const panelTitle = mode === 'zeit'
+    ? `Historischer Vergleich · Grundstück ${primary?.grundstueckNummer ?? ''}`
+    : `Grundstücksvergleich · ${parcels.length} ${parcels.length === 1 ? 'Grundstück' : 'Grundstücke'}`;
 
   return (
     <div
@@ -106,14 +214,13 @@ export default function MapPageV3() {
                 onChange={e => setQuery(e.target.value)}
                 onFocus={() => results.length > 0 && setShowDropdown(true)}
                 onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-                placeholder="Grundstück suchen…"
+                placeholder={mode === 'parzellen' && primary ? 'Weiteres Grundstück suchen…' : 'Grundstück suchen…'}
               />
             </div>
             {showDropdown && results.length > 0 && (
               <div className="search-dropdown mapv3-search__dropdown">
                 {results.map((r, i) => (
-                  <div key={i} className="search-dropdown-item"
-                    onMouseDown={() => select(r.info, r.label)}>
+                  <div key={i} className="search-dropdown-item" onMouseDown={() => selectFromSearch(r.info, r.label)}>
                     <div className="search-dropdown-item__label">{r.label}</div>
                     <div className="search-dropdown-item__sub">{r.subLabel}</div>
                   </div>
@@ -122,20 +229,34 @@ export default function MapPageV3() {
             )}
           </div>
 
-          {objectInfo ? (
+          {primary ? (
             <>
               <div className="info-panel__header mapv3-panel__head">
-                <span className="info-panel__title">
-                  Historischer Vergleich · Grundstück {objectInfo.grundstueckNummer}
-                </span>
-                <button className="info-panel__close" aria-label="Schliessen"
-                  onClick={() => { setObjectInfo(null); setQuery(''); }}>
+                <span className="info-panel__title">{panelTitle}</span>
+                <button className="info-panel__close" aria-label="Schliessen" onClick={closePanel}>
                   <LuX size={24} />
                 </button>
               </div>
-              <div className="mapv3-panel__sub">{objectInfo.gemeinde} · {objectInfo.egrid}</div>
+              <div className="mapv3-panel__sub">
+                {mode === 'zeit'
+                  ? `${primary.gemeinde} · ${primary.egrid}`
+                  : parcels.map(i => `Nr. ${i.grundstueckNummer}`).join(' · ')}
+              </div>
               <div className="mapv3-panel__body">
-                <ComparePanel info={objectInfo} />
+                <ComparePanel
+                  parcels={parcels}
+                  mode={mode}
+                  onModeChange={setMode}
+                  dates={dates}
+                  onDatesChange={setDates}
+                  baseDate={baseDate}
+                  onBaseDateChange={setBaseDate}
+                  pDate={pDate}
+                  onPDateChange={setPDate}
+                  onRemoveParcel={removeParcel}
+                  onAddParcelRef={addParcelRef}
+                  onCopyLink={copyLink}
+                />
               </div>
             </>
           ) : (
@@ -143,9 +264,9 @@ export default function MapPageV3() {
               <LuHistory size={34} />
               <h2>Historische Daten vergleichen</h2>
               <p>Wähle ein Grundstück in der Karte oder über die Suche. Danach kannst du den heutigen Stand
-                mit früheren Ständen vergleichen und beliebige Stichtage auswählen.</p>
+                mit früheren Ständen vergleichen, beliebige Stichtage wählen oder mehrere Grundstücke nebeneinander stellen.</p>
               <button type="button" className="cmp-btn"
-                onClick={() => { const i = EXAMPLE_INFO; select(i, `Grundstück ${i.grundstueckNummer}`); }}>
+                onClick={() => selectFromSearch(EXAMPLE_INFO, `Grundstück ${EXAMPLE_INFO.grundstueckNummer}`)}>
                 Beispiel laden
               </button>
             </div>
@@ -167,17 +288,70 @@ export default function MapPageV3() {
               opacity={0.7}
               attribution='&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Amtliche Vermessung'
             />
-            <MapResizer trigger={`${viewMode}-${Boolean(objectInfo)}-${dataPanelWidth}`} />
+            <MapResizer trigger={`${viewMode}-${parcels.length > 0}-${dataPanelWidth}`} />
             <CustomZoomControl />
+            <HistoricMapLayers
+              geometry={geometry}
+              focusToken={focusToken}
+              hasParcel={Boolean(primary)}
+              areaNow={areas.now}
+              areaThen={areas.then}
+              mapDate={mapDate}
+              showAerial={showAerial}
+              blend={blend}
+              showOutlines={showOutlines}
+              onAerialStatus={setAerialStatus}
+            />
             <ParcelLayer
-              onFeatureSelect={props => setObjectInfo(props ? infoFromParcel(props) : null)}
+              onFeatureSelect={(props, geom) => { if (props) selectParcel(infoFromParcel(props), geom ?? null, false); }}
               onLoadingChange={setLoading}
               onError={setError}
               onZoomChange={() => {}}
-              hasOpenInfoPanel={Boolean(objectInfo)}
+              hasOpenInfoPanel={Boolean(primary)}
               viewMode="map"
             />
           </MapContainer>
+
+          {/* Kartenstand */}
+          <div className={`mapv3-mapctl${mapPanelOpen ? '' : ' mapv3-mapctl--closed'}`}>
+            <button type="button" className="mapv3-mapctl__toggle" aria-expanded={mapPanelOpen}
+              onClick={() => setMapPanelOpen(o => !o)}>
+              <LuLayers size={15} /> Kartenstand
+              <span className="mapv3-mapctl__date">{mapDate === TODAY_ISO ? 'Heute' : formatDate(mapDate)}</span>
+              <LuChevronUp size={15} className="mapv3-mapctl__chev" />
+            </button>
+            {mapPanelOpen && (
+              <div className="mapv3-mapctl__body">
+                <label className="mapv3-mapctl__row">
+                  <span>Stichtag</span>
+                  <select value={mapDate} onChange={e => setMapDate(e.target.value)} disabled={!primary}>
+                    {mapDateOptions.map(d => <option key={d} value={d}>{d === TODAY_ISO ? 'Heute' : formatDate(d)}</option>)}
+                  </select>
+                </label>
+                <label className="mapv3-mapctl__check">
+                  <input type="checkbox" checked={showOutlines} onChange={e => setShowOutlines(e.target.checked)} />
+                  Grenzen: heute <span className="mapv3-key mapv3-key--now" /> / Stichtag <span className="mapv3-key mapv3-key--then" />
+                </label>
+                <label className="mapv3-mapctl__check">
+                  <input type="checkbox" checked={showAerial} onChange={e => setShowAerial(e.target.checked)} />
+                  Luftbild (swisstopo)
+                </label>
+                {showAerial && (
+                  <>
+                    <label className="mapv3-mapctl__row">
+                      <span>Überblenden</span>
+                      <input type="range" min={0} max={100} value={blend} onChange={e => setBlend(Number(e.target.value))}
+                        aria-label="Überblendung zwischen heute und Stichtag" />
+                    </label>
+                    <div className="mapv3-mapctl__ends"><span>heute</span><span>Stichtag</span></div>
+                    {aerialStatus && <div className="mapv3-mapctl__status">{aerialStatus}</div>}
+                  </>
+                )}
+                {!primary && <div className="mapv3-mapctl__status">Wähle ein Grundstück, um Grenzen zu sehen.</div>}
+              </div>
+            )}
+          </div>
+
           {loading && (
             <div className="loading-overlay" style={{ position: 'absolute' }}>
               <TbLoaderQuarter size={18} className="loading-spinner" /> Lade Parzellen…
