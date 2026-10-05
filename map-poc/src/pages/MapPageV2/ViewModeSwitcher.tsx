@@ -7,10 +7,10 @@ const VIEW_OPTIONS: { mode: ViewMode; label: string; title: string; Icon: typeof
   { mode: 'data',   label: 'Daten',  title: 'Objektdatenzentrierte Ansicht', Icon: LuListTree },
 ];
 
-export default function ViewModeSwitcher({ value, onChange }: { value: ViewMode; onChange: (m: ViewMode) => void }) {
+export default function ViewModeSwitcher({ value, onChange, modes }: { value: ViewMode; onChange: (m: ViewMode) => void; modes?: ViewMode[] }) {
   return (
     <div className="view-switcher" role="group" aria-label="Ansicht wählen">
-      {VIEW_OPTIONS.map(({ mode, label, title, Icon }) => (
+      {VIEW_OPTIONS.filter(o => !modes || modes.includes(o.mode)).map(({ mode, label, title, Icon }) => (
         <button
           key={mode}
           type="button"

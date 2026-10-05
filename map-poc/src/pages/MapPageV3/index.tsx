@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
 import type { Geometry } from 'geojson';
-import { LuSearch, LuX, LuHistory, LuLayers, LuChevronUp } from 'react-icons/lu';
+import { LuSearch, LuX, LuHistory, LuLayers, LuChevronUp, LuMap, LuListTree } from 'react-icons/lu';
 import { TbLoaderQuarter } from 'react-icons/tb';
 import 'leaflet/dist/leaflet.css';
 import '../MapPageV2/MapPageV2.css';
@@ -26,6 +26,7 @@ import { TODAY_ISO, buildHistory, snapshotAt, formatDate, yearsAgoIso } from './
 import type { ParcelRef } from './historyData';
 import type { CompareMode } from './urlState';
 import { parseState, serializeState } from './urlState';
+import { useMedia } from './useMedia';
 
 const MAP_CENTER: [number, number] = [47.3925, 8.0442];
 
@@ -93,6 +94,10 @@ export default function MapPageV3() {
   useEffect(() => {
     try { window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode); } catch { /* ignore */ }
   }, [viewMode]);
+
+  // Phones: either the map or the data, never both (Hybrid falls back to Karte).
+  const phone = useMedia('(max-width: 768px)');
+  const view: ViewMode = phone ? (viewMode === 'data' ? 'data' : 'map') : viewMode;
 
   // Data-view panel width: shared with v2 (same storage key), user-resizable.
   const [dataPanelWidth, setDataPanelWidth] = useState<number>(() => {
@@ -239,10 +244,10 @@ export default function MapPageV3() {
 
   return (
     <div
-      className={`mapv3-page mapv3-page--${viewMode}${resizing ? ' mapv3-page--resizing' : ''}`}
+      className={`mapv3-page mapv3-page--${view}${phone ? ' mapv3-page--phone' : ''}${resizing ? ' mapv3-page--resizing' : ''}`}
       style={{ '--data-panel-w': `${dataPanelWidth}px` } as React.CSSProperties}
     >
-      <Header extras={<ViewModeSwitcher value={viewMode} onChange={setViewMode} />} />
+      <Header extras={<ViewModeSwitcher value={view} onChange={setViewMode} modes={phone ? ['map', 'data'] : undefined} />} />
 
       <div className="mapv3-body">
         <aside className="mapv3-panel">
@@ -274,6 +279,11 @@ export default function MapPageV3() {
             <>
               <div className="info-panel__header mapv3-panel__head">
                 <span className="info-panel__title">{panelTitle}</span>
+                {phone && (
+                  <button type="button" className="mapv3-peekbtn" onClick={() => setViewMode(view === 'map' ? 'data' : 'map')}>
+                    {view === 'map' ? <><LuListTree size={15} /> Daten</> : <><LuMap size={15} /> Karte</>}
+                  </button>
+                )}
                 <button className="info-panel__close" aria-label="Schliessen" onClick={closePanel}>
                   <LuX size={24} />
                 </button>
@@ -334,7 +344,7 @@ export default function MapPageV3() {
               opacity={0.7}
               attribution='&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Amtliche Vermessung'
             />
-            <MapResizer trigger={`${viewMode}-${parcels.length > 0}-${dataPanelWidth}`} />
+            <MapResizer trigger={`${view}-${parcels.length > 0}-${dataPanelWidth}`} />
             <CustomZoomControl />
             <HistoricMapLayers
               geometry={geometry}
@@ -424,7 +434,7 @@ export default function MapPageV3() {
         </div>
       </div>
 
-      {viewMode === 'data' && (
+      {view === 'data' && !phone && (
         <DataPanelResizer width={dataPanelWidth} onResize={setDataPanelWidth} onDragChange={setResizing} />
       )}
     </div>
