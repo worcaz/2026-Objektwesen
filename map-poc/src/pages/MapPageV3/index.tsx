@@ -104,17 +104,17 @@ export default function MapPageV3() {
     try { window.localStorage.setItem(DATA_PANEL_WIDTH_STORAGE_KEY, String(dataPanelWidth)); } catch { /* ignore */ }
   }, [dataPanelWidth]);
 
-  // Search
-  const [query, setQuery] = useState('');
+  // Search (triggered by typing only, so programmatic query updates never open the dropdown)
+  const [query, setQuery] = useState(initial.parcels[0] ? `Grundstück ${initial.parcels[0].grundstueckNummer}` : '');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
-  const skipSearchRef = useRef(false);
-  useEffect(() => {
-    if (skipSearchRef.current) { skipSearchRef.current = false; return; }
-    if (!query.trim()) { setResults([]); return; }
-    const t = setTimeout(() => { setResults(buildSearchResults(query)); setShowDropdown(true); }, 300);
-    return () => clearTimeout(t);
-  }, [query]);
+  const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onSearchInput = (value: string) => {
+    setQuery(value);
+    if (searchTimer.current) clearTimeout(searchTimer.current);
+    if (!value.trim()) { setResults([]); setShowDropdown(false); return; }
+    searchTimer.current = setTimeout(() => { setResults(buildSearchResults(value)); setShowDropdown(true); }, 300);
+  };
 
   const primary = parcels[0] ?? null;
 
@@ -124,8 +124,19 @@ export default function MapPageV3() {
     if (!options.includes(mapDate)) setMapDate([...options].sort().reverse()[1] ?? options[0]);
   }, [dates, mapDate]);
 
+  // Keep the search field in sync with what is shown (map click, search, example, link).
+  const primaryEgrid = primary?.egrid;
+  useEffect(() => {
+    setQuery(mode === 'zeit' && primary ? `Grundstück ${primary.grundstueckNummer}` : '');
+    setResults([]);
+    setShowDropdown(false);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [primaryEgrid, mode]);
+
   // ── Selection logic ──
   const selectParcel = useCallback((info: ObjectInfo, geom: Geometry | null, focus: boolean) => {
+    // A comparison needs at least two Stichtage; make sure a first selection starts with something to compare.
+    setDates(prev => (prev.length >= 2 ? prev : [TODAY_ISO, yearsAgoIso(10)]));
     setParcels(prev => {
       if (mode === 'parzellen' && prev.length > 0) {
         if (prev.some(x => x.egrid === info.egrid)) return prev;
@@ -139,13 +150,13 @@ export default function MapPageV3() {
     }
   }, [mode, parcels.length]);
 
-  const selectFromSearch = (info: ObjectInfo, label?: string) => {
+  const selectFromSearch = (info: ObjectInfo) => {
     setShowDropdown(false);
-    if (label !== undefined) { skipSearchRef.current = true; setQuery(label); setResults([]); }
+    setResults([]);
     selectParcel(info, null, true);
   };
 
-  const closePanel = () => { setParcels([]); setGeometry(null); setQuery(''); };
+  const closePanel = () => { setParcels([]); setGeometry(null); };
 
   const removeParcel = (egrid: string) => {
     setParcels(prev => {
@@ -211,7 +222,7 @@ export default function MapPageV3() {
               <input
                 className="search-input mapv3-search__input"
                 value={query}
-                onChange={e => setQuery(e.target.value)}
+                onChange={e => onSearchInput(e.target.value)}
                 onFocus={() => results.length > 0 && setShowDropdown(true)}
                 onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
                 placeholder={mode === 'parzellen' && primary ? 'Weiteres Grundstück suchen…' : 'Grundstück suchen…'}
@@ -220,7 +231,7 @@ export default function MapPageV3() {
             {showDropdown && results.length > 0 && (
               <div className="search-dropdown mapv3-search__dropdown">
                 {results.map((r, i) => (
-                  <div key={i} className="search-dropdown-item" onMouseDown={() => selectFromSearch(r.info, r.label)}>
+                  <div key={i} className="search-dropdown-item" onMouseDown={() => selectFromSearch(r.info)}>
                     <div className="search-dropdown-item__label">{r.label}</div>
                     <div className="search-dropdown-item__sub">{r.subLabel}</div>
                   </div>
@@ -266,7 +277,7 @@ export default function MapPageV3() {
               <p>Wähle ein Grundstück in der Karte oder über die Suche. Danach kannst du den heutigen Stand
                 mit früheren Ständen vergleichen, beliebige Stichtage wählen oder mehrere Grundstücke nebeneinander stellen.</p>
               <button type="button" className="cmp-btn"
-                onClick={() => selectFromSearch(EXAMPLE_INFO, `Grundstück ${EXAMPLE_INFO.grundstueckNummer}`)}>
+                onClick={() => selectFromSearch(EXAMPLE_INFO)}>
                 Beispiel laden
               </button>
             </div>
