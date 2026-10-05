@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LuCalendarPlus, LuX, LuHistory, LuChevronDown, LuChevronRight, LuSearch,
-  LuLink, LuCheck, LuFileSpreadsheet, LuPrinter, LuGitBranch, LuPlus, LuListFilter, LuChevronUp,
+  LuLink, LuCheck, LuFileSpreadsheet, LuPrinter, LuGitBranch, LuPlus, LuListFilter, LuChevronUp, LuGitCompare,
 } from 'react-icons/lu';
 import type { ReactNode } from 'react';
 import type { ObjectInfo } from '../MapPageV2/mockData';
@@ -86,10 +86,16 @@ export interface ComparePanelProps {
   onRemoveParcel: (egrid: string) => void;
   onAddParcelRef: (ref: ParcelRef) => void;
   onCopyLink: () => Promise<boolean>;
+  /** false = normal object view at one Stand; true = comparison */
+  compare: boolean;
+  stand: string;
+  onStandChange: (d: string) => void;
+  onStartCompare: (kind: CompareMode, withDate?: string) => void;
+  onEndCompare: () => void;
 }
 
 /** Small dropdown that closes on outside click / Escape. */
-function Popover({ label, icon, children, align = 'left' }: { label: string; icon?: ReactNode; children: (close: () => void) => ReactNode; align?: 'left' | 'right' }) {
+function Popover({ label, icon, children, align = 'left', primary = false }: { label: string; icon?: ReactNode; children: (close: () => void) => ReactNode; align?: 'left' | 'right'; primary?: boolean }) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
@@ -102,7 +108,7 @@ function Popover({ label, icon, children, align = 'left' }: { label: string; ico
   }, [open]);
   return (
     <div className="cmp-popwrap" ref={ref}>
-      <button type="button" className={`cmp-tool${open ? ' cmp-tool--open' : ''}`} aria-expanded={open} onClick={() => setOpen(o => !o)}>
+      <button type="button" className={`cmp-tool${primary ? ' cmp-tool--primary' : ''}${open ? ' cmp-tool--open' : ''}`} aria-expanded={open} onClick={() => setOpen(o => !o)}>
         {icon} {label}
       </button>
       {open && <div className={`cmp-pop cmp-pop--${align}`}>{children(() => setOpen(false))}</div>}
@@ -111,7 +117,7 @@ function Popover({ label, icon, children, align = 'left' }: { label: string; ico
 }
 
 export default function ComparePanel(p: ComparePanelProps) {
-  const { parcels, mode, dates, baseDate, pDate } = p;
+  const { parcels, mode, dates, baseDate, pDate, compare, stand } = p;
   const primary = parcels[0];
 
   const histories = useMemo(() => parcels.map(buildHistory), [parcels]);
@@ -132,6 +138,13 @@ export default function ComparePanel(p: ComparePanelProps) {
   const eventRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   const cols: Col[] = useMemo(() => {
+    if (!compare) {
+      const s = snapshotAt(history, stand);
+      return [{
+        key: stand, title: stand === TODAY_ISO ? 'Heute' : formatDate(stand), sub: stand === TODAY_ISO ? formatDate(stand) : 'Stand',
+        info: s.info, stateIndex: s.stateIndex, date: stand,
+      }];
+    }
     if (mode === 'zeit') {
       return sortedDates.map(d => {
         const s = snapshotAt(history, d);
@@ -148,9 +161,9 @@ export default function ComparePanel(p: ComparePanelProps) {
         info: s.info, stateIndex: s.stateIndex, date: pDate,
       };
     });
-  }, [mode, sortedDates, history, histories, parcels, pDate]);
+  }, [compare, stand, mode, sortedDates, history, histories, parcels, pDate]);
 
-  const baseIdx = mode === 'zeit'
+  const baseIdx = !compare ? 0 : mode === 'zeit'
     ? Math.max(0, sortedDates.indexOf(baseDate))
     : Math.min(baseParcel, cols.length - 1);
   const groups = useMemo(() => buildGroups(cols.map(c => c.info)), [cols]);
@@ -197,6 +210,7 @@ export default function ComparePanel(p: ComparePanelProps) {
   const totalChanged = groups.reduce((n, g) => n + g.rows.filter(r => rowChanged(r, baseIdx)).length, 0);
   const changedGroups = groups.filter(g => g.rows.some(r => rowChanged(r, baseIdx))).length;
   const summary = useMemo(() => {
+    if (!compare) return '';
     if (mode !== 'zeit') {
       return `${totalChanged} ${totalChanged === 1 ? 'Feld unterscheidet' : 'Felder unterscheiden'} sich in ${changedGroups} ${changedGroups === 1 ? 'Bereich' : 'Bereichen'} zwischen den Grundstücken.`;
     }
@@ -210,7 +224,7 @@ export default function ComparePanel(p: ComparePanelProps) {
     return `Zwischen ${formatDate(oldest)} und ${newest === TODAY_ISO ? 'heute' : formatDate(newest)}: ` +
       `${evs.length} ${evs.length === 1 ? 'Ereignis' : 'Ereignisse'}${top.length ? ` (${top.join(', ')})` : ''}; ` +
       `${totalChanged} ${totalChanged === 1 ? 'geändertes Feld' : 'geänderte Felder'} in ${changedGroups} ${changedGroups === 1 ? 'Bereich' : 'Bereichen'}.`;
-  }, [mode, sortedDates, history, totalChanged, changedGroups]);
+  }, [compare, mode, sortedDates, history, totalChanged, changedGroups]);
 
   // ── Ereignisse: Filter, Sprung aus Zelle ──
   const eventTypes = useMemo(() => [...new Set(history.events.map(e => e.title))], [history]);
@@ -232,16 +246,20 @@ export default function ComparePanel(p: ComparePanelProps) {
 
   // ── Export & Link ──
   const exportData = () => ({
-    title: mode === 'zeit'
+    title: !compare
+      ? `Grundstück ${primary.grundstueckNummer} – Stand ${formatDate(stand)}`
+      : mode === 'zeit'
       ? `Historischer Vergleich – Grundstück ${primary.grundstueckNummer}`
       : `Grundstücksvergleich am ${formatDate(pDate)}`,
-    subtitle: mode === 'zeit'
+    subtitle: !compare
+      ? `${primary.gemeinde} · EGRID ${primary.egrid}`
+      : mode === 'zeit'
       ? `${primary.gemeinde} · EGRID ${primary.egrid} · Stichtage ${sortedDates.map(formatDate).join(', ')}`
       : `Grundstücke ${parcels.map(i => i.grundstueckNummer).join(', ')} · Stichtag ${formatDate(pDate)}`,
     columns: cols.map(c => ({ title: c.title, sub: c.sub })),
     groups: visibleGroups.map(g => ({ id: g.id, title: g.title, rows: g.rows })),
     baseIdx,
-    events: mode === 'zeit' ? history.events : [],
+    events: !compare || mode === 'zeit' ? history.events : [],
   });
   const copyLink = async () => {
     const ok = await p.onCopyLink();
@@ -249,25 +267,47 @@ export default function ComparePanel(p: ComparePanelProps) {
   };
 
   const eventsFor = (row: CmpRow, col: Col): HistoryEvent[] =>
-    mode === 'zeit' && col.key !== cols[baseIdx].key
+    compare && mode === 'zeit' && col.key !== cols[baseIdx].key
       ? eventsBetween(history, col.date, cols[baseIdx].date).filter(e => eventAffectsRow(e, row.id))
       : [];
 
   const hasDiffs = totalChanged > 0;
+  const sinceStand = eventsBetween(history, stand, TODAY_ISO).length;
+  const oldestYear = history.events.length ? history.events[history.events.length - 1].date.slice(0, 4) : null;
 
   return (
     <div className="cmp">
       <div className="cmp-controls">
         {/* Zeile 1: Vergleichsart + Werkzeuge */}
-        <div className="cmp-modes" role="tablist" aria-label="Vergleichsart">
-          <button type="button" role="tab" aria-selected={mode === 'zeit'}
-            className={`cmp-mode${mode === 'zeit' ? ' cmp-mode--active' : ''}`} onClick={() => p.onModeChange('zeit')}>
-            <LuHistory size={14} /> Zeitvergleich
-          </button>
-          <button type="button" role="tab" aria-selected={mode === 'parzellen'}
-            className={`cmp-mode${mode === 'parzellen' ? ' cmp-mode--active' : ''}`} onClick={() => p.onModeChange('parzellen')}>
-            <LuGitBranch size={14} /> Grundstücke
-          </button>
+        <div className="cmp-modes" role={compare ? 'tablist' : undefined} aria-label="Vergleichsart">
+          {!compare ? (
+            <Popover label="Vergleichen" icon={<LuGitCompare size={14} />} primary>
+              {close => (
+                <div className="cmp-startmenu">
+                  <button type="button" onClick={() => { close(); p.onStartCompare('zeit'); }}>
+                    <LuHistory size={15} /> <span><b>Mit früherem Stand</b><small>Heutigen Stand mit einem früheren Stichtag vergleichen</small></span>
+                  </button>
+                  <button type="button" onClick={() => { close(); p.onStartCompare('parzellen'); }}>
+                    <LuGitBranch size={15} /> <span><b>Mit anderem Grundstück</b><small>Mehrere Grundstücke nebeneinander stellen</small></span>
+                  </button>
+                </div>
+              )}
+            </Popover>
+          ) : (
+            <>
+              <button type="button" role="tab" aria-selected={mode === 'zeit'}
+                className={`cmp-mode${mode === 'zeit' ? ' cmp-mode--active' : ''}`} onClick={() => p.onModeChange('zeit')}>
+                <LuHistory size={14} /> Zeitvergleich
+              </button>
+              <button type="button" role="tab" aria-selected={mode === 'parzellen'}
+                className={`cmp-mode${mode === 'parzellen' ? ' cmp-mode--active' : ''}`} onClick={() => p.onModeChange('parzellen')}>
+                <LuGitBranch size={14} /> Grundstücke
+              </button>
+              <button type="button" className="cmp-tool" onClick={p.onEndCompare} title="Zurück zur Einzelansicht">
+                <LuX size={14} /> Vergleich beenden
+              </button>
+            </>
+          )}
           <span className="cmp-modes__spacer" />
           <button type="button" className="cmp-tool" onClick={copyLink} title="Link zu diesem Vergleich kopieren">
             {copied ? <LuCheck size={14} /> : <LuLink size={14} />} {copied ? 'Kopiert' : 'Link'}
@@ -281,46 +321,55 @@ export default function ComparePanel(p: ComparePanelProps) {
         </div>
 
         {/* Zeile 2: Stichtage (Zeitstrahl) bzw. Grundstücke */}
-        {controlsOpen && mode === 'zeit' && (
+        {controlsOpen && (!compare || mode === 'zeit') && (
           <div className="cmp-time">
             <Timeline
               events={history.events}
-              dates={sortedDates}
-              baseDate={cols[baseIdx]?.key ?? baseDate}
-              maxDates={MAX_COLUMNS}
-              onMoveDate={moveDate}
-              onAddDate={addDate}
+              dates={compare ? sortedDates : [stand]}
+              baseDate={compare ? (cols[baseIdx]?.key ?? baseDate) : stand}
+              maxDates={compare ? MAX_COLUMNS : 99}
+              lockToday={compare}
+              onMoveDate={compare ? moveDate : (_from, to) => p.onStandChange(to)}
+              onAddDate={compare ? addDate : (iso => p.onStandChange(iso))}
               onRemoveDate={removeDate}
             />
             <div className="cmp-timebar">
-              <Popover label="Stichtag" icon={<LuPlus size={14} />}>
-                {close => (
-                  <div className="cmp-addpop">
-                    <div className="cmp-pop__title">Stichtag hinzufügen {full && <span className="cmp-muted">(max. {MAX_COLUMNS} erreicht)</span>}</div>
-                    <div className="cmp-add">
-                      <input type="date" className="cmp-date" value={pickDate} min={MIN_STICHTAG} max={TODAY_ISO}
-                        disabled={full} onChange={e => setPickDate(e.target.value)} aria-label="Datum" />
-                      <button type="button" className="cmp-btn" disabled={full || !pickDate}
-                        onClick={() => { addDate(pickDate); setPickDate(''); close(); }}>
-                        <LuCalendarPlus size={14} /> Hinzufügen
-                      </button>
-                    </div>
-                    <div className="cmp-presets">
-                      {PRESETS.map(y => (
-                        <button key={y} type="button" className="cmp-preset" disabled={full || sortedDates.includes(yearsAgoIso(y))}
-                          onClick={() => { addDate(yearsAgoIso(y)); close(); }}>
-                          vor {y} {y === 1 ? 'Jahr' : 'Jahren'}
+              <Popover label={compare ? 'Stichtag' : 'Stand wählen'} icon={compare ? <LuPlus size={14} /> : <LuCalendarPlus size={14} />}>
+                {close => {
+                  const lock = compare && full;
+                  const choose = (iso: string) => { if (compare) addDate(iso); else p.onStandChange(iso); close(); };
+                  return (
+                    <div className="cmp-addpop">
+                      <div className="cmp-pop__title">
+                        {compare ? 'Stichtag hinzufügen' : 'Stand ansehen am'} {lock && <span className="cmp-muted">(max. {MAX_COLUMNS} erreicht)</span>}
+                      </div>
+                      <div className="cmp-add">
+                        <input type="date" className="cmp-date" value={pickDate} min={MIN_STICHTAG} max={TODAY_ISO}
+                          disabled={lock} onChange={e => setPickDate(e.target.value)} aria-label="Datum" />
+                        <button type="button" className="cmp-btn" disabled={lock || !pickDate}
+                          onClick={() => { choose(pickDate); setPickDate(''); }}>
+                          <LuCalendarPlus size={14} /> {compare ? 'Hinzufügen' : 'Anzeigen'}
                         </button>
-                      ))}
+                      </div>
+                      <div className="cmp-presets">
+                        {!compare && <button type="button" className="cmp-preset" disabled={stand === TODAY_ISO} onClick={() => choose(TODAY_ISO)}>Heute</button>}
+                        {PRESETS.map(y => (
+                          <button key={y} type="button" className="cmp-preset"
+                            disabled={lock || (compare ? sortedDates : [stand]).includes(yearsAgoIso(y))}
+                            onClick={() => choose(yearsAgoIso(y))}>
+                            vor {y} {y === 1 ? 'Jahr' : 'Jahren'}
+                          </button>
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                )}
+                  );
+                }}
               </Popover>
-              <span className="cmp-timelegend"><i className="tl-dot" /> Änderung am Grundstück (anklicken = Stichtag)</span>
+              <span className="cmp-timelegend"><i className="tl-dot" /> Änderung am Grundstück (anklicken = {compare ? 'Stichtag' : 'Stand ansehen'})</span>
             </div>
           </div>
         )}
-        {controlsOpen && mode === 'parzellen' && (
+        {controlsOpen && compare && mode === 'parzellen' && (
           <div className="cmp-time">
             <div className="cmp-chips">
               {parcels.map(i => (
@@ -353,10 +402,12 @@ export default function ComparePanel(p: ComparePanelProps) {
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Felder und Werte suchen…" aria-label="Tabelle durchsuchen" />
             {search && <button type="button" aria-label="Suche leeren" onClick={() => setSearch('')}><LuX size={13} /></button>}
           </div>
-          <label className="cmp-switch" title={cols.length < 2 ? 'Mindestens zwei Spalten nötig' : undefined}>
-            <input type="checkbox" checked={onlyChangesPref} disabled={cols.length < 2} onChange={e => setOnlyChanges(e.target.checked)} />
-            Nur Unterschiede
-          </label>
+          {compare && (
+            <label className="cmp-switch" title={cols.length < 2 ? 'Mindestens zwei Spalten nötig' : undefined}>
+              <input type="checkbox" checked={onlyChangesPref} disabled={cols.length < 2} onChange={e => setOnlyChanges(e.target.checked)} />
+              Nur Unterschiede
+            </label>
+          )}
           <Popover label={hiddenGroups.size ? `Bereiche (${groups.length - hiddenGroups.size}/${groups.length})` : 'Bereiche'} icon={<LuListFilter size={14} />} align="right">
             {() => (
               <div className="cmp-groupmenu">
@@ -370,18 +421,33 @@ export default function ComparePanel(p: ComparePanelProps) {
             )}
           </Popover>
           <button type="button" className="cmp-tool" aria-expanded={controlsOpen} onClick={() => setControlsOpen(o => !o)}
-            title={controlsOpen ? 'Stichtage ausblenden' : 'Stichtage einblenden'}>
-            <LuChevronUp size={14} className={controlsOpen ? '' : 'cmp-flip'} /> {mode === 'zeit' ? 'Stichtage' : 'Grundstücke'}
+            title={controlsOpen ? 'Zeitstrahl ausblenden' : 'Zeitstrahl einblenden'}>
+            <LuChevronUp size={14} className={controlsOpen ? '' : 'cmp-flip'} /> {!compare ? 'Zeitstrahl' : mode === 'zeit' ? 'Stichtage' : 'Grundstücke'}
           </button>
         </div>
 
-        <div className="cmp-summary" role="status">
-          <span>{summary}</span>
-          <span className="cmp-legend">
-            <span className="cmp-item--added cmp-legend__sw">neu</span>
-            <span className="cmp-item--removed cmp-legend__sw">entfallen</span>
-          </span>
-        </div>
+        {compare ? (
+          <div className="cmp-summary" role="status">
+            <span>{summary}</span>
+            <span className="cmp-legend">
+              <span className="cmp-item--added cmp-legend__sw">neu</span>
+              <span className="cmp-item--removed cmp-legend__sw">entfallen</span>
+            </span>
+          </div>
+        ) : (
+          <div className="cmp-summary cmp-summary--teaser" role="status">
+            <span>
+              {stand === TODAY_ISO
+                ? <>Aktueller Stand. {history.events.length > 0 ? `Seit ${oldestYear} sind ${history.events.length} Änderungen erfasst.` : 'Keine früheren Änderungen erfasst.'}</>
+                : <>Stand vom {formatDate(stand)} – seither {sinceStand} {sinceStand === 1 ? 'Änderung' : 'Änderungen'}.</>}
+            </span>
+            {history.events.length > 0 && (
+              <button type="button" className="cmp-linkbtn" onClick={() => p.onStartCompare('zeit', stand === TODAY_ISO ? undefined : stand)}>
+                {stand === TODAY_ISO ? 'Mit früherem Stand vergleichen' : 'Mit heute vergleichen'} →
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
       <div className="cmp-body">
@@ -395,12 +461,14 @@ export default function ComparePanel(p: ComparePanelProps) {
                   <th key={c.key} className={`cmp-th${isBase ? ' cmp-th--base' : ''}`}>
                     <div className="cmp-th__date">{c.title}</div>
                     {c.sub && <div className="cmp-th__sub">{c.sub}</div>}
-                    <label className="cmp-th__base">
-                      <input type="radio" name="cmp-base" checked={isBase}
-                        onChange={() => (mode === 'zeit' ? p.onBaseDateChange(c.key) : setBaseParcel(i))} />
-                      Vergleichsbasis
-                    </label>
-                    {!isBase && c.stateIndex === cols[baseIdx].stateIndex && mode === 'zeit' && <div className="cmp-th__same">wie Basis</div>}
+                    {cols.length > 1 && (
+                      <label className="cmp-th__base">
+                        <input type="radio" name="cmp-base" checked={isBase}
+                          onChange={() => (mode === 'zeit' ? p.onBaseDateChange(c.key) : setBaseParcel(i))} />
+                        Vergleichsbasis
+                      </label>
+                    )}
+                    {compare && !isBase && c.stateIndex === cols[baseIdx].stateIndex && mode === 'zeit' && <div className="cmp-th__same">wie Basis</div>}
                   </th>
                 );
               })}
@@ -475,7 +543,12 @@ export default function ComparePanel(p: ComparePanelProps) {
                       onClick={() => setOpenEvents(prev => toggleIn(prev, ev.id))}>
                       {open ? <LuChevronDown size={13} /> : <LuChevronRight size={13} />} {ev.title}
                     </button>
-                    {mode === 'zeit' && (
+                    {!compare ? (
+                      <button type="button" className="cmp-preset" disabled={stand === ev.date} onClick={() => p.onStandChange(ev.date)}
+                        title="Zustand ab diesem Datum anzeigen">
+                        {stand === ev.date ? 'angezeigt' : 'Stand ansehen'}
+                      </button>
+                    ) : mode === 'zeit' && (
                       <button type="button" className="cmp-preset" disabled={active || full} onClick={() => addDate(ev.date)}
                         title="Zustand ab diesem Datum als Stichtag hinzufügen">
                         {active ? 'gewählt' : '+ Stichtag'}

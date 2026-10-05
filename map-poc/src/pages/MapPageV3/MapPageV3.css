@@ -270,3 +270,16 @@
 .cmp-empty-row { padding: 18px 12px; color: #6b7280; }
 .cmp-table { margin-top: 10px; }
 .cmp-th { top: 0; }
+
+/* ── Single view: start comparison ───────────────────────── */
+
+.cmp-tool--primary { background: #009fe3; border-color: #009fe3; color: #fff; padding: 6px 12px; font-size: 13px; }
+.cmp-tool--primary:hover, .cmp-tool--primary.cmp-tool--open { background: #0087c0; border-color: #0087c0; }
+.cmp-startmenu { display: grid; gap: 4px; width: 300px; max-width: calc(100vw - 48px); margin: -4px; }
+.cmp-startmenu button {
+  display: flex; gap: 10px; align-items: flex-start; text-align: left; padding: 8px 10px; border: none; border-radius: 8px; background: none; cursor: pointer; color: #111827;
+}
+.cmp-startmenu button:hover { background: #f0f8ff; }
+.cmp-startmenu b { display: block; font-size: 13px; }
+.cmp-startmenu small { display: block; font-size: 11.5px; color: #6b7280; margin-top: 1px; }
+.cmp-summary--teaser { background: #f9fafb; border-color: #e5e7eb; color: #374151; }

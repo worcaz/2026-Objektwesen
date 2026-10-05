@@ -11,6 +11,8 @@ interface TimelineProps {
   dates: string[];
   baseDate: string;
   maxDates: number;
+  /** "Heute" can't be moved while comparing (it is the fixed reference). */
+  lockToday?: boolean;
   /** Replace one Stichtag by another date (drag). */
   onMoveDate: (from: string, to: string) => void;
   onAddDate: (iso: string) => void;
@@ -18,7 +20,7 @@ interface TimelineProps {
 }
 
 /** Horizontal time axis: drag Stichtag pins, click the axis or an event marker to add one. */
-export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate, onAddDate, onRemoveDate }: TimelineProps) {
+export default function Timeline({ events, dates, baseDate, maxDates, lockToday = true, onMoveDate, onAddDate, onRemoveDate }: TimelineProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   // Drag handlers outlive a render; always call the newest props.
   const latest = useRef({ dates, onMoveDate });
@@ -57,7 +59,7 @@ export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate
   }, [tMin, tMax]);
 
   const startPinDrag = (e: React.PointerEvent<HTMLButtonElement>, iso: string) => {
-    if (iso === TODAY_ISO) return; // "Heute" is fixed
+    if (lockToday && iso === TODAY_ISO) return; // "Heute" is fixed
     e.preventDefault();
     e.stopPropagation();
     const el = e.currentTarget;
@@ -84,7 +86,7 @@ export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate
   };
 
   const stepPin = (e: React.KeyboardEvent, iso: string) => {
-    if (iso === TODAY_ISO) return;
+    if (lockToday && iso === TODAY_ISO) return;
     const delta = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : 0;
     if (!delta) return;
     e.preventDefault();
@@ -127,7 +129,7 @@ export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate
         {dates.map(d => (
           <div
             key={pinKey(d)}
-            className={`tl-pin${d === baseDate ? ' tl-pin--base' : ''}${d === TODAY_ISO ? ' tl-pin--fixed' : ''}`}
+            className={`tl-pin${d === baseDate ? ' tl-pin--base' : ''}${lockToday && d === TODAY_ISO ? ' tl-pin--fixed' : ''}`}
             style={{ left: `${pct(d)}%` }}
           >
             <span className="tl-pin__label" style={{ transform: `translateX(${pct(d) > 90 ? '-85%' : pct(d) < 10 ? '-15%' : '-50%'})` }}>
@@ -142,7 +144,7 @@ export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate
               className="tl-pin__handle"
               onPointerDown={e => startPinDrag(e, d)}
               onKeyDown={e => { stepPin(e, d); if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); onRemoveDate(d); } }}
-              aria-label={`Stichtag ${formatDate(d)}${d === TODAY_ISO ? '' : ' – mit Pfeiltasten verschiebbar, Entf zum Entfernen'}`}
+              aria-label={`Stichtag ${formatDate(d)}${lockToday && d === TODAY_ISO ? '' : ' – mit Pfeiltasten verschiebbar'}`}
             />
           </div>
         ))}
