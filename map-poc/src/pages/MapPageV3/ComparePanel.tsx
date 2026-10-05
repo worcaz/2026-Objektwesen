@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LuCalendarPlus, LuX, LuHistory, LuChevronDown, LuChevronRight, LuSearch,
-  LuLink, LuCheck, LuFileSpreadsheet, LuPrinter, LuGitBranch,
+  LuLink, LuCheck, LuFileSpreadsheet, LuPrinter, LuGitBranch, LuPlus, LuListFilter, LuChevronUp,
 } from 'react-icons/lu';
+import type { ReactNode } from 'react';
 import type { ObjectInfo } from '../MapPageV2/mockData';
 import { TinyLegendSymbol, getBodenbedeckungColor, getZoneColor } from '../MapPageV2/LegendSymbol';
 import type { CmpRow } from './compareModel';
@@ -87,6 +88,28 @@ export interface ComparePanelProps {
   onCopyLink: () => Promise<boolean>;
 }
 
+/** Small dropdown that closes on outside click / Escape. */
+function Popover({ label, icon, children, align = 'left' }: { label: string; icon?: ReactNode; children: (close: () => void) => ReactNode; align?: 'left' | 'right' }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+  }, [open]);
+  return (
+    <div className="cmp-popwrap" ref={ref}>
+      <button type="button" className={`cmp-tool${open ? ' cmp-tool--open' : ''}`} aria-expanded={open} onClick={() => setOpen(o => !o)}>
+        {icon} {label}
+      </button>
+      {open && <div className={`cmp-pop cmp-pop--${align}`}>{children(() => setOpen(false))}</div>}
+    </div>
+  );
+}
+
 export default function ComparePanel(p: ComparePanelProps) {
   const { parcels, mode, dates, baseDate, pDate } = p;
   const primary = parcels[0];
@@ -97,7 +120,7 @@ export default function ComparePanel(p: ComparePanelProps) {
   const sortedDates = useMemo(() => [...new Set(dates)].sort().reverse(), [dates]);
   const [baseParcel, setBaseParcel] = useState(0);
   const [pickDate, setPickDate] = useState('');
-  const [onlyChanges, setOnlyChanges] = useState(false);
+  const [onlyChangesPref, setOnlyChanges] = useState(true);
   const [search, setSearch] = useState('');
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
@@ -105,6 +128,7 @@ export default function ComparePanel(p: ComparePanelProps) {
   const [openEvents, setOpenEvents] = useState<Set<string>>(new Set());
   const [hl, setHl] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
+  const [controlsOpen, setControlsOpen] = useState(true);
   const eventRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   const cols: Col[] = useMemo(() => {
@@ -130,6 +154,8 @@ export default function ComparePanel(p: ComparePanelProps) {
     ? Math.max(0, sortedDates.indexOf(baseDate))
     : Math.min(baseParcel, cols.length - 1);
   const groups = useMemo(() => buildGroups(cols.map(c => c.info)), [cols]);
+  // With a single column there is nothing to diff, so show everything.
+  const onlyChanges = onlyChangesPref && cols.length > 1;
 
   // ── Stichtage (Zeitvergleich) ──
   const full = sortedDates.length >= MAX_COLUMNS;
@@ -227,133 +253,138 @@ export default function ComparePanel(p: ComparePanelProps) {
       ? eventsBetween(history, col.date, cols[baseIdx].date).filter(e => eventAffectsRow(e, row.id))
       : [];
 
+  const hasDiffs = totalChanged > 0;
+
   return (
     <div className="cmp">
-      {/* Modus */}
-      <div className="cmp-modes" role="tablist" aria-label="Vergleichsart">
-        <button type="button" role="tab" aria-selected={mode === 'zeit'}
-          className={`cmp-mode${mode === 'zeit' ? ' cmp-mode--active' : ''}`} onClick={() => p.onModeChange('zeit')}>
-          <LuHistory size={14} /> Zeitvergleich
-        </button>
-        <button type="button" role="tab" aria-selected={mode === 'parzellen'}
-          className={`cmp-mode${mode === 'parzellen' ? ' cmp-mode--active' : ''}`} onClick={() => p.onModeChange('parzellen')}>
-          <LuGitBranch size={14} /> Grundstücke vergleichen
-        </button>
-        <span className="cmp-modes__spacer" />
-        <button type="button" className="cmp-tool" onClick={copyLink} title="Link zu diesem Vergleich kopieren">
-          {copied ? <LuCheck size={14} /> : <LuLink size={14} />} {copied ? 'Kopiert' : 'Link'}
-        </button>
-        <button type="button" className="cmp-tool" onClick={() => exportCsv(exportData(), `vergleich-${primary.grundstueckNummer}.csv`)} title="Als Excel-Tabelle (CSV) exportieren">
-          <LuFileSpreadsheet size={14} /> Excel
-        </button>
-        <button type="button" className="cmp-tool" onClick={() => { if (!exportPdf(exportData())) window.alert('Bitte Pop-ups für diese Seite erlauben.'); }} title="Als PDF drucken / speichern">
-          <LuPrinter size={14} /> PDF
-        </button>
-      </div>
-
-      {mode === 'zeit' ? (
-        <div className="cmp-section">
-          <div className="cmp-section__title">Stichtage wählen <span className="cmp-muted">(max. {MAX_COLUMNS})</span></div>
-
-          <Timeline
-            events={history.events}
-            dates={sortedDates}
-            baseDate={cols[baseIdx]?.key ?? baseDate}
-            maxDates={MAX_COLUMNS}
-            onMoveDate={moveDate}
-            onAddDate={addDate}
-          />
-
-          <div className="cmp-chips">
-            {sortedDates.map(d => (
-              <span key={d} className="cmp-chip">
-                {d === TODAY_ISO ? 'Heute' : formatDate(d)}
-                {sortedDates.length > 1 && (
-                  <button type="button" aria-label={`Stichtag ${formatDate(d)} entfernen`} onClick={() => removeDate(d)}>
-                    <LuX size={13} />
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-
-          <div className="cmp-add">
-            <input type="date" className="cmp-date" value={pickDate} min={MIN_STICHTAG} max={TODAY_ISO}
-              disabled={full} onChange={e => setPickDate(e.target.value)} aria-label="Eigenes Stichtag-Datum" />
-            <button type="button" className="cmp-btn" disabled={full || !pickDate}
-              onClick={() => { addDate(pickDate); setPickDate(''); }}>
-              <LuCalendarPlus size={14} /> Hinzufügen
-            </button>
-          </div>
-
-          <div className="cmp-presets">
-            <span className="cmp-muted">Schnellwahl:</span>
-            {PRESETS.map(y => (
-              <button key={y} type="button" className="cmp-preset" disabled={full} onClick={() => addDate(yearsAgoIso(y))}>
-                vor {y} {y === 1 ? 'Jahr' : 'Jahren'}
-              </button>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div className="cmp-section">
-          <div className="cmp-section__title">Grundstücke <span className="cmp-muted">(max. {MAX_COLUMNS})</span></div>
-          <div className="cmp-chips">
-            {parcels.map(i => (
-              <span key={i.egrid} className="cmp-chip">
-                Grundstück {i.grundstueckNummer} · {i.gemeinde}
-                {parcels.length > 1 && (
-                  <button type="button" aria-label={`Grundstück ${i.grundstueckNummer} entfernen`} onClick={() => p.onRemoveParcel(i.egrid)}>
-                    <LuX size={13} />
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-          <div className="cmp-muted cmp-hint">
-            {parcels.length < MAX_COLUMNS
-              ? 'Weitere Grundstücke in der Karte anklicken oder über die Suche hinzufügen.'
-              : 'Maximale Anzahl erreicht – entferne ein Grundstück, um ein anderes hinzuzufügen.'}
-          </div>
-          <div className="cmp-add">
-            <label className="cmp-muted" htmlFor="cmp-pdate">Stichtag:</label>
-            <input id="cmp-pdate" type="date" className="cmp-date" value={pDate} min={MIN_STICHTAG} max={TODAY_ISO}
-              onChange={e => e.target.value && e.target.value <= TODAY_ISO && p.onPDateChange(e.target.value)} />
-            <button type="button" className="cmp-preset" onClick={() => p.onPDateChange(TODAY_ISO)}>Heute</button>
-          </div>
-        </div>
-      )}
-
-      {/* Zusammenfassung + Filter */}
-      <div className="cmp-summary" role="status">{summary}</div>
-
-      <div className="cmp-filters">
-        <div className="cmp-search">
-          <LuSearch size={14} />
-          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Felder und Werte durchsuchen…" aria-label="Tabelle durchsuchen" />
-          {search && <button type="button" aria-label="Suche leeren" onClick={() => setSearch('')}><LuX size={13} /></button>}
-        </div>
-        <label className="cmp-check">
-          <input type="checkbox" checked={onlyChanges} onChange={e => setOnlyChanges(e.target.checked)} />
-          Nur Unterschiede
-        </label>
-      </div>
-      <div className="cmp-presets">
-        <span className="cmp-muted">Bereiche:</span>
-        {groups.map(g => (
-          <button key={g.id} type="button" aria-pressed={!hiddenGroups.has(g.id)}
-            className={`cmp-preset${hiddenGroups.has(g.id) ? '' : ' cmp-preset--on'}`}
-            onClick={() => setHiddenGroups(prev => toggleIn(prev, g.id))}>
-            {g.title}
+      <div className="cmp-controls">
+        {/* Zeile 1: Vergleichsart + Werkzeuge */}
+        <div className="cmp-modes" role="tablist" aria-label="Vergleichsart">
+          <button type="button" role="tab" aria-selected={mode === 'zeit'}
+            className={`cmp-mode${mode === 'zeit' ? ' cmp-mode--active' : ''}`} onClick={() => p.onModeChange('zeit')}>
+            <LuHistory size={14} /> Zeitvergleich
           </button>
-        ))}
-        <span className="cmp-legend">
-          <span className="cmp-item--added cmp-legend__sw">neu</span>
-          <span className="cmp-item--removed cmp-legend__sw">entfallen</span>
-        </span>
+          <button type="button" role="tab" aria-selected={mode === 'parzellen'}
+            className={`cmp-mode${mode === 'parzellen' ? ' cmp-mode--active' : ''}`} onClick={() => p.onModeChange('parzellen')}>
+            <LuGitBranch size={14} /> Grundstücke
+          </button>
+          <span className="cmp-modes__spacer" />
+          <button type="button" className="cmp-tool" onClick={copyLink} title="Link zu diesem Vergleich kopieren">
+            {copied ? <LuCheck size={14} /> : <LuLink size={14} />} {copied ? 'Kopiert' : 'Link'}
+          </button>
+          <button type="button" className="cmp-tool" onClick={() => exportCsv(exportData(), `vergleich-${primary.grundstueckNummer}.csv`)} title="Als Excel-Tabelle (CSV) exportieren">
+            <LuFileSpreadsheet size={14} /> Excel
+          </button>
+          <button type="button" className="cmp-tool" onClick={() => { if (!exportPdf(exportData())) window.alert('Bitte Pop-ups für diese Seite erlauben.'); }} title="Als PDF drucken / speichern">
+            <LuPrinter size={14} /> PDF
+          </button>
+        </div>
+
+        {/* Zeile 2: Stichtage (Zeitstrahl) bzw. Grundstücke */}
+        {controlsOpen && mode === 'zeit' && (
+          <div className="cmp-time">
+            <Timeline
+              events={history.events}
+              dates={sortedDates}
+              baseDate={cols[baseIdx]?.key ?? baseDate}
+              maxDates={MAX_COLUMNS}
+              onMoveDate={moveDate}
+              onAddDate={addDate}
+              onRemoveDate={removeDate}
+            />
+            <div className="cmp-timebar">
+              <Popover label="Stichtag" icon={<LuPlus size={14} />}>
+                {close => (
+                  <div className="cmp-addpop">
+                    <div className="cmp-pop__title">Stichtag hinzufügen {full && <span className="cmp-muted">(max. {MAX_COLUMNS} erreicht)</span>}</div>
+                    <div className="cmp-add">
+                      <input type="date" className="cmp-date" value={pickDate} min={MIN_STICHTAG} max={TODAY_ISO}
+                        disabled={full} onChange={e => setPickDate(e.target.value)} aria-label="Datum" />
+                      <button type="button" className="cmp-btn" disabled={full || !pickDate}
+                        onClick={() => { addDate(pickDate); setPickDate(''); close(); }}>
+                        <LuCalendarPlus size={14} /> Hinzufügen
+                      </button>
+                    </div>
+                    <div className="cmp-presets">
+                      {PRESETS.map(y => (
+                        <button key={y} type="button" className="cmp-preset" disabled={full || sortedDates.includes(yearsAgoIso(y))}
+                          onClick={() => { addDate(yearsAgoIso(y)); close(); }}>
+                          vor {y} {y === 1 ? 'Jahr' : 'Jahren'}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </Popover>
+              <span className="cmp-timelegend"><i className="tl-dot" /> Änderung am Grundstück (anklicken = Stichtag)</span>
+            </div>
+          </div>
+        )}
+        {controlsOpen && mode === 'parzellen' && (
+          <div className="cmp-time">
+            <div className="cmp-chips">
+              {parcels.map(i => (
+                <span key={i.egrid} className="cmp-chip">
+                  Nr. {i.grundstueckNummer} · {i.gemeinde}
+                  {parcels.length > 1 && (
+                    <button type="button" aria-label={`Grundstück ${i.grundstueckNummer} entfernen`} onClick={() => p.onRemoveParcel(i.egrid)}>
+                      <LuX size={13} />
+                    </button>
+                  )}
+                </span>
+              ))}
+              <span className="cmp-muted">
+                {parcels.length < MAX_COLUMNS ? 'Weitere in der Karte anklicken oder suchen' : 'Maximum erreicht'}
+              </span>
+            </div>
+            <div className="cmp-add">
+              <label className="cmp-muted" htmlFor="cmp-pdate">Stichtag:</label>
+              <input id="cmp-pdate" type="date" className="cmp-date" value={pDate} min={MIN_STICHTAG} max={TODAY_ISO}
+                onChange={e => e.target.value && e.target.value <= TODAY_ISO && p.onPDateChange(e.target.value)} />
+              <button type="button" className="cmp-preset" onClick={() => p.onPDateChange(TODAY_ISO)}>Heute</button>
+            </div>
+          </div>
+        )}
+
+        {/* Zeile 3: Suche, Filter */}
+        <div className="cmp-toolbar2">
+          <div className="cmp-search">
+            <LuSearch size={14} />
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Felder und Werte suchen…" aria-label="Tabelle durchsuchen" />
+            {search && <button type="button" aria-label="Suche leeren" onClick={() => setSearch('')}><LuX size={13} /></button>}
+          </div>
+          <label className="cmp-switch" title={cols.length < 2 ? 'Mindestens zwei Spalten nötig' : undefined}>
+            <input type="checkbox" checked={onlyChangesPref} disabled={cols.length < 2} onChange={e => setOnlyChanges(e.target.checked)} />
+            Nur Unterschiede
+          </label>
+          <Popover label={hiddenGroups.size ? `Bereiche (${groups.length - hiddenGroups.size}/${groups.length})` : 'Bereiche'} icon={<LuListFilter size={14} />} align="right">
+            {() => (
+              <div className="cmp-groupmenu">
+                {groups.map(g => (
+                  <label key={g.id} className="cmp-check">
+                    <input type="checkbox" checked={!hiddenGroups.has(g.id)} onChange={() => setHiddenGroups(prev => toggleIn(prev, g.id))} />
+                    {g.title}
+                  </label>
+                ))}
+              </div>
+            )}
+          </Popover>
+          <button type="button" className="cmp-tool" aria-expanded={controlsOpen} onClick={() => setControlsOpen(o => !o)}
+            title={controlsOpen ? 'Stichtage ausblenden' : 'Stichtage einblenden'}>
+            <LuChevronUp size={14} className={controlsOpen ? '' : 'cmp-flip'} /> {mode === 'zeit' ? 'Stichtage' : 'Grundstücke'}
+          </button>
+        </div>
+
+        <div className="cmp-summary" role="status">
+          <span>{summary}</span>
+          <span className="cmp-legend">
+            <span className="cmp-item--added cmp-legend__sw">neu</span>
+            <span className="cmp-item--removed cmp-legend__sw">entfallen</span>
+          </span>
+        </div>
       </div>
 
-      <div className="cmp-scroll">
+      <div className="cmp-body">
         <table className="cmp-table">
           <thead>
             <tr>
@@ -407,74 +438,79 @@ export default function ComparePanel(p: ComparePanelProps) {
               ];
             })}
             {visibleGroups.length === 0 && (
-              <tr><td className="cmp-cell" colSpan={cols.length + 1}>Keine Einträge für die gewählten Filter.</td></tr>
+              <tr>
+                <td className="cmp-cell cmp-empty-row" colSpan={cols.length + 1}>
+                  {onlyChanges && !hasDiffs && !q
+                    ? <>Zwischen den gewählten Ständen gibt es keine Unterschiede. <button type="button" className="cmp-linkbtn" onClick={() => setOnlyChanges(false)}>Alle Felder anzeigen</button></>
+                    : 'Keine Einträge für die gewählten Filter.'}
+                </td>
+              </tr>
             )}
           </tbody>
         </table>
-      </div>
 
-      {/* Änderungshistorie */}
-      <div className="cmp-section">
-        <div className="cmp-section__title"><LuHistory size={14} /> Änderungshistorie · Grundstück {primary.grundstueckNummer}</div>
-        <div className="cmp-presets cmp-presets--tight">
-          <button type="button" className={`cmp-preset${typeFilter.size === 0 ? ' cmp-preset--on' : ''}`} onClick={() => setTypeFilter(new Set())}>Alle</button>
-          {eventTypes.map(t => (
-            <button key={t} type="button" aria-pressed={typeFilter.has(t)}
-              className={`cmp-preset${typeFilter.has(t) ? ' cmp-preset--on' : ''}`}
-              onClick={() => setTypeFilter(prev => toggleIn(prev, t))}>
-              {t}
-            </button>
-          ))}
-        </div>
-        <ol className="cmp-timeline">
-          {shownEvents.map(ev => {
-            const active = sortedDates.includes(ev.date);
-            const open = openEvents.has(ev.id);
-            return (
-              <li key={ev.id} ref={el => { eventRefs.current[ev.id] = el; }}
-                className={`cmp-event${hl.has(ev.id) ? ' cmp-event--hl' : ''}`}>
-                <div className="cmp-event__head">
-                  <span className="cmp-event__date">{formatDate(ev.date)}</span>
-                  <button type="button" className="cmp-event__title" aria-expanded={open}
-                    onClick={() => setOpenEvents(prev => toggleIn(prev, ev.id))}>
-                    {open ? <LuChevronDown size={13} /> : <LuChevronRight size={13} />} {ev.title}
-                  </button>
-                  {mode === 'zeit' && (
-                    <button type="button" className="cmp-preset" disabled={active || full} onClick={() => addDate(ev.date)}
-                      title="Zustand ab diesem Datum als Stichtag hinzufügen">
-                      {active ? 'gewählt' : '+ Stichtag'}
+        {/* Änderungshistorie */}
+        <div className="cmp-section cmp-history">
+          <div className="cmp-section__title"><LuHistory size={14} /> Änderungshistorie · Grundstück {primary.grundstueckNummer}</div>
+          <div className="cmp-presets cmp-presets--tight">
+            <button type="button" className={`cmp-preset${typeFilter.size === 0 ? ' cmp-preset--on' : ''}`} onClick={() => setTypeFilter(new Set())}>Alle</button>
+            {eventTypes.map(t => (
+              <button key={t} type="button" aria-pressed={typeFilter.has(t)}
+                className={`cmp-preset${typeFilter.has(t) ? ' cmp-preset--on' : ''}`}
+                onClick={() => setTypeFilter(prev => toggleIn(prev, t))}>
+                {t}
+              </button>
+            ))}
+          </div>
+          <ol className="cmp-timeline">
+            {shownEvents.map(ev => {
+              const active = sortedDates.includes(ev.date);
+              const open = openEvents.has(ev.id);
+              return (
+                <li key={ev.id} ref={el => { eventRefs.current[ev.id] = el; }}
+                  className={`cmp-event${hl.has(ev.id) ? ' cmp-event--hl' : ''}`}>
+                  <div className="cmp-event__head">
+                    <span className="cmp-event__date">{formatDate(ev.date)}</span>
+                    <button type="button" className="cmp-event__title" aria-expanded={open}
+                      onClick={() => setOpenEvents(prev => toggleIn(prev, ev.id))}>
+                      {open ? <LuChevronDown size={13} /> : <LuChevronRight size={13} />} {ev.title}
                     </button>
-                  )}
-                </div>
-                <div className="cmp-event__desc">{ev.description}</div>
-                {open && (
-                  <dl className="cmp-event__proof">
-                    <dt>Stelle</dt><dd>{ev.stelle}</dd>
-                    <dt>Beleg</dt><dd>{ev.beleg}</dd>
-                    {ev.herkunft && (
-                      <>
-                        <dt>Herkunft</dt>
-                        <dd>
-                          {ev.herkunft.map(h => (
-                            <button key={h.egrid} type="button" className="cmp-preset"
-                              disabled={parcels.some(x => x.egrid === h.egrid) || parcels.length >= MAX_COLUMNS}
-                              onClick={() => p.onAddParcelRef(h)} title="Dieses Grundstück im Grundstücksvergleich hinzufügen">
-                              Nr. {h.nummer} vergleichen
-                            </button>
-                          ))}
-                        </dd>
-                      </>
+                    {mode === 'zeit' && (
+                      <button type="button" className="cmp-preset" disabled={active || full} onClick={() => addDate(ev.date)}
+                        title="Zustand ab diesem Datum als Stichtag hinzufügen">
+                        {active ? 'gewählt' : '+ Stichtag'}
+                      </button>
                     )}
-                  </dl>
-                )}
-              </li>
-            );
-          })}
-          {shownEvents.length === 0 && <li className="cmp-muted">Keine Ereignisse für diesen Filter.</li>}
-        </ol>
-        <div className="cmp-muted cmp-note">Mock-Daten: Historie, Stellen und Belegnummern sind für die Demonstration generiert.</div>
+                  </div>
+                  <div className="cmp-event__desc">{ev.description}</div>
+                  {open && (
+                    <dl className="cmp-event__proof">
+                      <dt>Stelle</dt><dd>{ev.stelle}</dd>
+                      <dt>Beleg</dt><dd>{ev.beleg}</dd>
+                      {ev.herkunft && (
+                        <>
+                          <dt>Herkunft</dt>
+                          <dd>
+                            {ev.herkunft.map(h => (
+                              <button key={h.egrid} type="button" className="cmp-preset"
+                                disabled={parcels.some(x => x.egrid === h.egrid) || parcels.length >= MAX_COLUMNS}
+                                onClick={() => p.onAddParcelRef(h)} title="Dieses Grundstück im Grundstücksvergleich hinzufügen">
+                                Nr. {h.nummer} vergleichen
+                              </button>
+                            ))}
+                          </dd>
+                        </>
+                      )}
+                    </dl>
+                  )}
+                </li>
+              );
+            })}
+            {shownEvents.length === 0 && <li className="cmp-muted">Keine Ereignisse für diesen Filter.</li>}
+          </ol>
+          <div className="cmp-muted cmp-note">Mock-Daten: Historie, Stellen und Belegnummern sind für die Demonstration generiert.</div>
+        </div>
       </div>
     </div>
   );
 }
-

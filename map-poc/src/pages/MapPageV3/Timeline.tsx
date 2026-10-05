@@ -14,10 +14,11 @@ interface TimelineProps {
   /** Replace one Stichtag by another date (drag). */
   onMoveDate: (from: string, to: string) => void;
   onAddDate: (iso: string) => void;
+  onRemoveDate: (iso: string) => void;
 }
 
 /** Horizontal time axis: drag Stichtag pins, click the axis or an event marker to add one. */
-export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate, onAddDate }: TimelineProps) {
+export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate, onAddDate, onRemoveDate }: TimelineProps) {
   const trackRef = useRef<HTMLDivElement | null>(null);
   // Drag handlers outlive a render; always call the newest props.
   const latest = useRef({ dates, onMoveDate });
@@ -103,7 +104,7 @@ export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate
           if ((e.target as HTMLElement).closest('.tl-pin, .tl-event')) return;
           if (dates.length < maxDates) onAddDate(isoAtClientX(e.clientX));
         }}
-        title={dates.length < maxDates ? 'Klicken, um einen Stichtag zu setzen' : undefined}
+        title={dates.length < maxDates ? 'Auf die Achse klicken, um einen Stichtag zu setzen' : undefined}
       >
         <div className="tl-line" />
         {ticks.map(y => (
@@ -124,20 +125,28 @@ export default function Timeline({ events, dates, baseDate, maxDates, onMoveDate
         ))}
 
         {dates.map(d => (
-          <button
+          <div
             key={pinKey(d)}
-            type="button"
             className={`tl-pin${d === baseDate ? ' tl-pin--base' : ''}${d === TODAY_ISO ? ' tl-pin--fixed' : ''}`}
             style={{ left: `${pct(d)}%` }}
-            onPointerDown={e => startPinDrag(e, d)}
-            onKeyDown={e => stepPin(e, d)}
-            aria-label={`Stichtag ${formatDate(d)}${d === TODAY_ISO ? '' : ' – mit Pfeiltasten verschiebbar'}`}
           >
-            <span className="tl-pin__label">{d === TODAY_ISO ? 'Heute' : formatDate(d)}</span>
-          </button>
+            <span className="tl-pin__label" style={{ transform: `translateX(${pct(d) > 90 ? '-85%' : pct(d) < 10 ? '-15%' : '-50%'})` }}>
+              {d === TODAY_ISO ? 'Heute' : formatDate(d)}
+              {dates.length > 1 && (
+                <button type="button" className="tl-pin__x" aria-label={`Stichtag ${formatDate(d)} entfernen`}
+                  onClick={() => onRemoveDate(d)}>×</button>
+              )}
+            </span>
+            <button
+              type="button"
+              className="tl-pin__handle"
+              onPointerDown={e => startPinDrag(e, d)}
+              onKeyDown={e => { stepPin(e, d); if (e.key === 'Delete' || e.key === 'Backspace') { e.preventDefault(); onRemoveDate(d); } }}
+              aria-label={`Stichtag ${formatDate(d)}${d === TODAY_ISO ? '' : ' – mit Pfeiltasten verschiebbar, Entf zum Entfernen'}`}
+            />
+          </div>
         ))}
       </div>
-      <div className="tl-hint">Stichtage per Ziehen verschieben, auf die Achse oder einen Punkt klicken zum Hinzufügen.</div>
     </div>
   );
 }
