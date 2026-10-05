@@ -610,3 +610,5 @@
   padding: 11px 14px;
   cursor: pointer;
 }
+
+.header-right { gap: 10px; }

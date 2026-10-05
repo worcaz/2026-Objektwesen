@@ -1196,3 +1196,159 @@
   cursor: pointer;
   color: #111;
 }
+
+/* ── View mode switcher (lives in the header bar) ───────── */
+
+.view-switcher {
+  display: flex;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.view-switcher__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-switcher__btn + .view-switcher__btn {
+  border-left: 1px solid rgba(255, 255, 255, 0.55);
+}
+
+.view-switcher__btn:hover {
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.view-switcher__btn--active,
+.view-switcher__btn--active:hover {
+  background: #fff;
+  color: #0087c0;
+}
+
+@media (max-width: 640px) {
+  .view-switcher__label { display: none; }
+  .view-switcher__btn { padding: 4px 8px; }
+}
+
+/* ── View mode: Karte (map-centered) ─────────────────────── */
+
+.search-panel--map .info-panel {
+  border-radius: 0 0 12px 12px;
+}
+
+.search-panel--map .info-panel__body {
+  max-height: min(40vh, calc(100dvh - 180px));
+}
+
+/* ── View mode: Daten (data-centered) ────────────────────── */
+/* Width comes from --data-panel-w (user-resizable), capped at 80vw.
+   Keep the 80vw cap in sync with DATA_PANEL_MAX_VW in viewMode.ts. */
+
+.mapv2-page--data {
+  --data-w: min(var(--data-panel-w, 760px), 80vw);
+}
+
+.mapv2-page--data .mapv2-container {
+  transition: margin-left 0.2s ease, width 0.2s ease;
+}
+
+.mapv2-page--resizing .mapv2-container {
+  transition: none;
+}
+
+.mapv2-page--resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+
+.search-panel--data.search-panel--open {
+  top: 37px;
+  left: 0;
+  bottom: 0;
+  width: var(--data-w) !important;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.12);
+}
+
+.search-panel--data.search-panel--open .search-input {
+  border-radius: 0 !important;
+  box-shadow: none;
+  border-width: 0 0 1px 0;
+}
+
+.search-panel--data.search-panel--open > div:last-child {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-panel--data .info-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.search-panel--data .info-panel__body {
+  flex: 1;
+  max-height: none;
+}
+
+.data-resizer {
+  position: fixed;
+  top: 37px;
+  bottom: 0;
+  left: calc(min(var(--data-panel-w, 760px), 80vw) - 4px);
+  width: 8px;
+  z-index: 1550;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.data-resizer::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 2px;
+  width: 4px;
+  height: 44px;
+  transform: translateY(-50%);
+  border-radius: 2px;
+  background: #9ca3af;
+  opacity: 0.7;
+}
+
+.data-resizer:hover::after,
+.data-resizer:focus-visible::after,
+.mapv2-page--resizing .data-resizer::after {
+  background: #009fe3;
+  opacity: 1;
+}
+
+/* Narrow screens: panel overlays the map full-width, no resizing. */
+@media (max-width: 768px) {
+  .search-panel--data.search-panel--open { width: 100vw !important; }
+  .data-resizer { display: none; }
+}
+
+@media (min-width: 769px) {
+  .mapv2-page--data.mapv2-page--has-object .mapv2-container {
+    width: calc(100% - var(--data-w));
+    margin-left: var(--data-w);
+    flex: 1;
+  }
+}

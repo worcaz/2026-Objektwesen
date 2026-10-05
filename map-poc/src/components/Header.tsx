@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { LuHouse, LuLayers3, LuX } from 'react-icons/lu';
 import './Header.css';
@@ -176,7 +176,7 @@ function BotAvatar({ seed, size = 22 }: { seed: string; size?: number }) {
   );
 }
 
-export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () => void } = {}) {
+export default function Header({ onAccountMenuOpen, extras }: { onAccountMenuOpen?: () => void; extras?: ReactNode } = {}) {
   const [open, setOpen] = useState(false);
   const [loginOpen, setLoginOpen] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
@@ -327,6 +327,7 @@ export default function Header({ onAccountMenuOpen }: { onAccountMenuOpen?: () =
         </Link>
 
         <div className="header-right">
+          {extras}
           <div className="header-account-wrapper">
             <button
               type="button"

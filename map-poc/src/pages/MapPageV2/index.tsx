@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TbLoaderQuarter } from 'react-icons/tb';
-import { MapContainer, TileLayer, WMSTileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 
 
@@ -53,6 +53,12 @@ import SearchPanel from './ObjectInfoPanel';
 import DummyChatbotWidget from './ChatbotWidget';
 import MapLayerSelectorControl, { CustomZoomControl } from './MapLayerSelectorControl';
 import ParcelLayer from './ParcelLayer';
+import ViewModeSwitcher from './ViewModeSwitcher';
+import type { ViewMode } from './viewMode';
+import {
+  VIEW_MODE_STORAGE_KEY, isViewMode,
+  DATA_PANEL_WIDTH_STORAGE_KEY, DATA_PANEL_MIN_WIDTH, DATA_PANEL_DEFAULT_WIDTH, clampDataPanelWidth,
+} from './viewMode';
 
 
 // ─── Fixed-position overlays ──────────────────────────────────────────────────
@@ -79,6 +85,59 @@ function ErrorBox({ message, onClose }: { message: string; onClose: () => void }
 }
 
 
+// Leaflet doesn't notice CSS-driven container resizes; re-measure on layout change.
+function MapResizer({ trigger }: { trigger: string }) {
+  const map = useMap();
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 220);
+    return () => clearTimeout(t);
+  }, [map, trigger]);
+  return null;
+}
+
+const DATA_PANEL_KEYBOARD_STEP = 24;
+
+/** Drag handle on the right edge of the data-view side panel. */
+function DataPanelResizer({
+  width, onResize, onDragChange,
+}: { width: number; onResize: (w: number) => void; onDragChange: (dragging: boolean) => void }) {
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    onDragChange(true);
+    const move = (ev: PointerEvent) => onResize(clampDataPanelWidth(ev.clientX));
+    const end = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', end);
+      el.removeEventListener('pointercancel', end);
+      onDragChange(false);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  };
+
+  return (
+    <div
+      className="data-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Breite des Datenpanels ändern"
+      aria-valuenow={width}
+      aria-valuemin={DATA_PANEL_MIN_WIDTH}
+      tabIndex={0}
+      onPointerDown={startDrag}
+      onDoubleClick={() => onResize(clampDataPanelWidth(DATA_PANEL_DEFAULT_WIDTH))}
+      onKeyDown={e => {
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); onResize(clampDataPanelWidth(width - DATA_PANEL_KEYBOARD_STEP)); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); onResize(clampDataPanelWidth(width + DATA_PANEL_KEYBOARD_STEP)); }
+      }}
+    />
+  );
+}
+
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 // Map center: Aarau, Switzerland (zoom 16).
@@ -100,6 +159,32 @@ export default function MapPageV2() {
   const [waldgrenzenOpacity, setWaldgrenzenOpacity] = useState(0.9);
   const [nutzungsplanungOpacity, setNutzungsplanungOpacity] = useState(0.8);
   const [gefahrenkarteOpacity, setGefahrenkarteOpacity] = useState(0.8);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      return isViewMode(stored) ? stored : 'hybrid';
+    } catch {
+      return 'hybrid';
+    }
+  });
+
+  const [dataPanelWidth, setDataPanelWidth] = useState<number>(() => {
+    try {
+      const stored = Number(window.localStorage.getItem(DATA_PANEL_WIDTH_STORAGE_KEY));
+      return stored > 0 ? stored : DATA_PANEL_DEFAULT_WIDTH;
+    } catch {
+      return DATA_PANEL_DEFAULT_WIDTH;
+    }
+  });
+  const [resizing, setResizing] = useState(false);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(DATA_PANEL_WIDTH_STORAGE_KEY, String(dataPanelWidth)); } catch { /* ignore */ }
+  }, [dataPanelWidth]);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode); } catch { /* ignore */ }
+  }, [viewMode]);
 
   useEffect(() => {
     if (objectInfo) {
@@ -108,9 +193,15 @@ export default function MapPageV2() {
   }, [objectInfo]);
 
   return (
-    <div className="mapv2-page">
+    <div
+      className={`mapv2-page mapv2-page--${viewMode}${objectInfo ? ' mapv2-page--has-object' : ''}${resizing ? ' mapv2-page--resizing' : ''}`}
+      style={{ '--data-panel-w': `${dataPanelWidth}px` } as React.CSSProperties}
+    >
 
-      <Header onAccountMenuOpen={() => setIsLayerSelectorOpen(false)} />
+      <Header
+        onAccountMenuOpen={() => setIsLayerSelectorOpen(false)}
+        extras={<ViewModeSwitcher value={viewMode} onChange={setViewMode} />}
+      />
 
       <MapContainer center={MAP_CENTER} zoom={16} zoomControl={false} className="mapv2-container">
 
@@ -179,6 +270,8 @@ export default function MapPageV2() {
           />
         )}
 
+        <MapResizer trigger={`${viewMode}-${Boolean(objectInfo)}-${dataPanelWidth}`} />
+
         <CustomZoomControl />
 
         <MapLayerSelectorControl
@@ -212,6 +305,7 @@ export default function MapPageV2() {
           onError={setError}
           onZoomChange={setCurrentZoom}
           hasOpenInfoPanel={Boolean(objectInfo)}
+          viewMode={viewMode}
         />
 
       </MapContainer>
@@ -225,7 +319,12 @@ export default function MapPageV2() {
         onClose={() => setObjectInfo(null)}
         onActivate={() => setIsLayerSelectorOpen(false)}
         onInfoPanelClick={() => setIsLayerSelectorOpen(false)}
+        viewMode={viewMode}
       />
+
+      {viewMode === 'data' && objectInfo && (
+        <DataPanelResizer width={dataPanelWidth} onResize={setDataPanelWidth} onDragChange={setResizing} />
+      )}
 
       <DummyChatbotWidget />
     </div>
