@@ -122,8 +122,8 @@
 /* hybrid = default grid above; map = map-centered; data = data-centered */
 
 .mapv3-page--map .mapv3-body { grid-template-columns: clamp(340px, 30vw, 440px) 1fr; }
-.mapv3-page--data .mapv3-body { grid-template-columns: 1fr clamp(220px, 18vw, 320px); }
-.mapv3-page--data .mapv3-mapwrap { order: 2; }
+.mapv3-page--data .mapv3-body { grid-template-columns: min(var(--data-panel-w, 760px), 80vw) minmax(0, 1fr); }
+.mapv3-page--resizing { user-select: none; cursor: col-resize; }
 
 /* ── Responsive: stack map above the panel ───────────────── */
 
