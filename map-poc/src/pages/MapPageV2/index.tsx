@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TbLoaderQuarter } from 'react-icons/tb';
 import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
-import { LuMap, LuColumns2, LuListTree } from 'react-icons/lu';
 import L from 'leaflet';
 
 
@@ -54,8 +53,12 @@ import SearchPanel from './ObjectInfoPanel';
 import DummyChatbotWidget from './ChatbotWidget';
 import MapLayerSelectorControl, { CustomZoomControl } from './MapLayerSelectorControl';
 import ParcelLayer from './ParcelLayer';
+import ViewModeSwitcher from './ViewModeSwitcher';
 import type { ViewMode } from './viewMode';
-import { VIEW_MODE_STORAGE_KEY, isViewMode } from './viewMode';
+import {
+  VIEW_MODE_STORAGE_KEY, isViewMode,
+  DATA_PANEL_WIDTH_STORAGE_KEY, DATA_PANEL_MIN_WIDTH, DATA_PANEL_DEFAULT_WIDTH, clampDataPanelWidth,
+} from './viewMode';
 
 
 // ─── Fixed-position overlays ──────────────────────────────────────────────────
@@ -92,29 +95,45 @@ function MapResizer({ trigger }: { trigger: string }) {
   return null;
 }
 
-const VIEW_OPTIONS: { mode: ViewMode; label: string; title: string; Icon: typeof LuMap }[] = [
-  { mode: 'map',    label: 'Karte',  title: 'Kartenzentrierte Ansicht',      Icon: LuMap },
-  { mode: 'hybrid', label: 'Hybrid', title: 'Hybride Ansicht',               Icon: LuColumns2 },
-  { mode: 'data',   label: 'Daten',  title: 'Objektdatenzentrierte Ansicht', Icon: LuListTree },
-];
+const DATA_PANEL_KEYBOARD_STEP = 24;
 
-function ViewModeSwitcher({ value, onChange }: { value: ViewMode; onChange: (m: ViewMode) => void }) {
+/** Drag handle on the right edge of the data-view side panel. */
+function DataPanelResizer({
+  width, onResize, onDragChange,
+}: { width: number; onResize: (w: number) => void; onDragChange: (dragging: boolean) => void }) {
+  const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    const el = e.currentTarget;
+    el.setPointerCapture(e.pointerId);
+    onDragChange(true);
+    const move = (ev: PointerEvent) => onResize(clampDataPanelWidth(ev.clientX));
+    const end = () => {
+      el.removeEventListener('pointermove', move);
+      el.removeEventListener('pointerup', end);
+      el.removeEventListener('pointercancel', end);
+      onDragChange(false);
+    };
+    el.addEventListener('pointermove', move);
+    el.addEventListener('pointerup', end);
+    el.addEventListener('pointercancel', end);
+  };
+
   return (
-    <div className="view-switcher" role="group" aria-label="Ansicht wählen">
-      {VIEW_OPTIONS.map(({ mode, label, title, Icon }) => (
-        <button
-          key={mode}
-          type="button"
-          title={title}
-          aria-pressed={value === mode}
-          className={`view-switcher__btn${value === mode ? ' view-switcher__btn--active' : ''}`}
-          onClick={() => onChange(mode)}
-        >
-          <Icon size={15} />
-          <span className="view-switcher__label">{label}</span>
-        </button>
-      ))}
-    </div>
+    <div
+      className="data-resizer"
+      role="separator"
+      aria-orientation="vertical"
+      aria-label="Breite des Datenpanels ändern"
+      aria-valuenow={width}
+      aria-valuemin={DATA_PANEL_MIN_WIDTH}
+      tabIndex={0}
+      onPointerDown={startDrag}
+      onDoubleClick={() => onResize(clampDataPanelWidth(DATA_PANEL_DEFAULT_WIDTH))}
+      onKeyDown={e => {
+        if (e.key === 'ArrowLeft')  { e.preventDefault(); onResize(clampDataPanelWidth(width - DATA_PANEL_KEYBOARD_STEP)); }
+        if (e.key === 'ArrowRight') { e.preventDefault(); onResize(clampDataPanelWidth(width + DATA_PANEL_KEYBOARD_STEP)); }
+      }}
+    />
   );
 }
 
@@ -149,6 +168,20 @@ export default function MapPageV2() {
     }
   });
 
+  const [dataPanelWidth, setDataPanelWidth] = useState<number>(() => {
+    try {
+      const stored = Number(window.localStorage.getItem(DATA_PANEL_WIDTH_STORAGE_KEY));
+      return stored > 0 ? stored : DATA_PANEL_DEFAULT_WIDTH;
+    } catch {
+      return DATA_PANEL_DEFAULT_WIDTH;
+    }
+  });
+  const [resizing, setResizing] = useState(false);
+
+  useEffect(() => {
+    try { window.localStorage.setItem(DATA_PANEL_WIDTH_STORAGE_KEY, String(dataPanelWidth)); } catch { /* ignore */ }
+  }, [dataPanelWidth]);
+
   useEffect(() => {
     try { window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode); } catch { /* ignore */ }
   }, [viewMode]);
@@ -160,11 +193,15 @@ export default function MapPageV2() {
   }, [objectInfo]);
 
   return (
-    <div className={`mapv2-page mapv2-page--${viewMode}${objectInfo ? ' mapv2-page--has-object' : ''}`}>
+    <div
+      className={`mapv2-page mapv2-page--${viewMode}${objectInfo ? ' mapv2-page--has-object' : ''}${resizing ? ' mapv2-page--resizing' : ''}`}
+      style={{ '--data-panel-w': `${dataPanelWidth}px` } as React.CSSProperties}
+    >
 
-      <Header onAccountMenuOpen={() => setIsLayerSelectorOpen(false)} />
-
-      <ViewModeSwitcher value={viewMode} onChange={setViewMode} />
+      <Header
+        onAccountMenuOpen={() => setIsLayerSelectorOpen(false)}
+        extras={<ViewModeSwitcher value={viewMode} onChange={setViewMode} />}
+      />
 
       <MapContainer center={MAP_CENTER} zoom={16} zoomControl={false} className="mapv2-container">
 
@@ -233,7 +270,7 @@ export default function MapPageV2() {
           />
         )}
 
-        <MapResizer trigger={`${viewMode}-${Boolean(objectInfo)}`} />
+        <MapResizer trigger={`${viewMode}-${Boolean(objectInfo)}-${dataPanelWidth}`} />
 
         <CustomZoomControl />
 
@@ -284,6 +321,10 @@ export default function MapPageV2() {
         onInfoPanelClick={() => setIsLayerSelectorOpen(false)}
         viewMode={viewMode}
       />
+
+      {viewMode === 'data' && objectInfo && (
+        <DataPanelResizer width={dataPanelWidth} onResize={setDataPanelWidth} onDragChange={setResizing} />
+      )}
 
       <DummyChatbotWidget />
     </div>
