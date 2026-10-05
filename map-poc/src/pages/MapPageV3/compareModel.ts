@@ -33,11 +33,8 @@ function scalar(id: string, label: string, infos: ObjectInfo[], get: (i: ObjectI
   return { id, label, kind: 'scalar', cells: infos.map(i => ({ lines: [dash(get(i))] })) };
 }
 
-function list(
-  id: string, label: string, infos: ObjectInfo[], get: (i: ObjectInfo) => string[],
-  legend?: CmpRow['legend'],
-): CmpRow {
-  return { id, label, kind: 'list', legend, cells: infos.map(i => ({ lines: get(i) })) };
+function list(id: string, label: string, infos: ObjectInfo[], get: (i: ObjectInfo) => string[]): CmpRow {
+  return { id, label, kind: 'list', cells: infos.map(i => ({ lines: get(i) })) };
 }
 
 function ownerLines(i: ObjectInfo): string[] {
