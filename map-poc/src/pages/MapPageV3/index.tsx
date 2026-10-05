@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
 import { LuSearch, LuX, LuHistory } from 'react-icons/lu';
 import { TbLoaderQuarter } from 'react-icons/tb';
@@ -32,13 +32,21 @@ export default function MapPageV3() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
 
+  // Set when the query was filled programmatically (selection), so no new dropdown opens.
+  const skipSearchRef = useRef(false);
+
   useEffect(() => {
+    if (skipSearchRef.current) { skipSearchRef.current = false; return; }
     if (!query.trim()) { setResults([]); return; }
     const t = setTimeout(() => { setResults(buildSearchResults(query)); setShowDropdown(true); }, 300);
     return () => clearTimeout(t);
   }, [query]);
 
-  const select = (info: ObjectInfo) => { setObjectInfo(info); setShowDropdown(false); };
+  const select = (info: ObjectInfo, label?: string) => {
+    setObjectInfo(info);
+    setShowDropdown(false);
+    if (label !== undefined) { skipSearchRef.current = true; setQuery(label); setResults([]); }
+  };
 
   return (
     <div className="mapv3-page">
@@ -62,7 +70,7 @@ export default function MapPageV3() {
               <div className="search-dropdown mapv3-search__dropdown">
                 {results.map((r, i) => (
                   <div key={i} className="search-dropdown-item"
-                    onMouseDown={() => { select(r.info); setQuery(r.label); }}>
+                    onMouseDown={() => select(r.info, r.label)}>
                     <div className="search-dropdown-item__label">{r.label}</div>
                     <div className="search-dropdown-item__sub">{r.subLabel}</div>
                   </div>
@@ -94,7 +102,7 @@ export default function MapPageV3() {
               <p>Wähle ein Grundstück in der Karte oder über die Suche. Danach kannst du den heutigen Stand
                 mit früheren Ständen vergleichen und beliebige Stichtage auswählen.</p>
               <button type="button" className="cmp-btn"
-                onClick={() => { const i = buildDummyInfo('3814', '3814'); select(i); setQuery(`Grundstück ${i.grundstueckNummer}`); }}>
+                onClick={() => { const i = buildDummyInfo('3814', '3814'); select(i, `Grundstück ${i.grundstueckNummer}`); }}>
                 Beispiel laden
               </button>
             </div>
