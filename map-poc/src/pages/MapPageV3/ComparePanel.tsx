@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { LuCalendarPlus, LuX, LuHistory, LuChevronDown, LuChevronRight } from 'react-icons/lu';
 import type { ObjectInfo } from '../MapPageV2/mockData';
 import type { CmpRow } from './compareModel';
+import { TinyLegendSymbol, getBodenbedeckungColor, getZoneColor } from '../MapPageV2/LegendSymbol';
 import { buildGroups, cellChanged, rowChanged } from './compareModel';
 import {
   TODAY_ISO, MIN_STICHTAG, buildHistory, snapshotAt, formatDate, yearsAgoIso,
@@ -9,6 +10,17 @@ import {
 
 const MAX_COLUMNS = 4;
 const PRESETS = [1, 5, 10, 20, 30];
+
+function LineLabel({ row, line }: { row: CmpRow; line: string }) {
+  if (!row.legend) return <>{line}</>;
+  const fill = row.legend === 'bodenbedeckung' ? getBodenbedeckungColor(line) : getZoneColor(line);
+  return (
+    <span className="cmp-legend-line">
+      <TinyLegendSymbol fill={fill} title={line} variant={row.legend} />
+      <span>{line}</span>
+    </span>
+  );
+}
 
 function CompareCell({ row, idx, baseIdx }: { row: CmpRow; idx: number; baseIdx: number }) {
   const cell = row.cells[idx];
@@ -27,10 +39,10 @@ function CompareCell({ row, idx, baseIdx }: { row: CmpRow; idx: number; baseIdx:
     <td className={changed ? 'cmp-cell cmp-cell--changed' : 'cmp-cell'}>
       {cell.lines.length === 0 && removed.length === 0 && <span className="cmp-empty">–</span>}
       {cell.lines.map(l => (
-        <div key={l} className={!isBase && !base.absent && !base.lines.includes(l) ? 'cmp-item cmp-item--added' : 'cmp-item'}>{l}</div>
+        <div key={l} className={!isBase && !base.absent && !base.lines.includes(l) ? 'cmp-item cmp-item--added' : 'cmp-item'}><LineLabel row={row} line={l} /></div>
       ))}
       {removed.map(l => (
-        <div key={l} className="cmp-item cmp-item--removed" title="Im Vergleichsstand vorhanden, hier nicht">{l}</div>
+        <div key={l} className="cmp-item cmp-item--removed" title="Im Vergleichsstand vorhanden, hier nicht"><LineLabel row={row} line={l} /></div>
       ))}
     </td>
   );
