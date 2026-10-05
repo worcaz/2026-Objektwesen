@@ -14,6 +14,8 @@ export interface CmpRow {
   label: string;
   /** scalar: one value; list: items are diffed individually; sub: sub-heading row without cells */
   kind: 'scalar' | 'list' | 'sub';
+  /** Show the map-legend symbol in front of each line */
+  legend?: 'bodenbedeckung' | 'zonenplan';
   cells: Cell[];
 }
 
@@ -29,8 +31,11 @@ function scalar(id: string, label: string, infos: ObjectInfo[], get: (i: ObjectI
   return { id, label, kind: 'scalar', cells: infos.map(i => ({ lines: [dash(get(i))] })) };
 }
 
-function list(id: string, label: string, infos: ObjectInfo[], get: (i: ObjectInfo) => string[]): CmpRow {
-  return { id, label, kind: 'list', cells: infos.map(i => ({ lines: get(i) })) };
+function list(
+  id: string, label: string, infos: ObjectInfo[], get: (i: ObjectInfo) => string[],
+  legend?: CmpRow['legend'],
+): CmpRow {
+  return { id, label, kind: 'list', legend, cells: infos.map(i => ({ lines: get(i) })) };
 }
 
 function ownerLines(i: ObjectInfo): string[] {
@@ -99,10 +104,10 @@ export function buildGroups(infos: ObjectInfo[]): CmpGroup[] {
     scalar('gb', 'Grundbuch (GB-Nr.)', infos, i => i.grundbuchNr),
     scalar('art', 'Grundstückart', infos, i => i.grundstueckArt),
     scalar('flur', 'Flurnamen', infos, i => i.flurname),
-    list('boden', 'Bodenbedeckung', infos, i => i.bodenbedeckung.map(b => `${b.label} (${b.area})`)),
+    list('boden', 'Bodenbedeckung', infos, i => i.bodenbedeckung.map(b => `${b.label} (${b.area})`), 'bodenbedeckung'),
     scalar('flaeche', 'Fläche (grundbuchlich)', infos, i => i.flaecheGrundbuch),
     list('zone', 'Grundnutzung Zonenplan', infos, i =>
-      i.grundnutzungZonenplan.map(z => `${z.zonentyp} – ${z.gemeinde} (${z.flaeche}, ${z.anteil})`)),
+      i.grundnutzungZonenplan.map(z => `${z.zonentyp} – ${z.gemeinde} (${z.flaeche}, ${z.anteil})`), 'zonenplan'),
   ];
 
   const grundstueck: CmpRow[] = [
