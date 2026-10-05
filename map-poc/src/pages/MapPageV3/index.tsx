@@ -12,6 +12,9 @@ import ParcelLayer from '../MapPageV2/ParcelLayer';
 import type { ObjectInfo, SearchResult } from '../MapPageV2/mockData';
 import { buildDummyInfo, buildSearchResults, infoFromParcel } from '../MapPageV2/mockData';
 import ComparePanel from './ComparePanel';
+import ViewModeSwitcher from '../MapPageV2/ViewModeSwitcher';
+import type { ViewMode } from '../MapPageV2/viewMode';
+import { VIEW_MODE_STORAGE_KEY, isViewMode } from '../MapPageV2/viewMode';
 
 const MAP_CENTER: [number, number] = [47.3925, 8.0442];
 
@@ -28,6 +31,18 @@ export default function MapPageV3() {
   const [objectInfo, setObjectInfo] = useState<ObjectInfo | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      return isViewMode(stored) ? stored : 'hybrid';
+    } catch {
+      return 'hybrid';
+    }
+  });
+  useEffect(() => {
+    try { window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode); } catch { /* ignore */ }
+  }, [viewMode]);
+
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<SearchResult[]>([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -49,8 +64,8 @@ export default function MapPageV3() {
   };
 
   return (
-    <div className="mapv3-page">
-      <Header />
+    <div className={`mapv3-page mapv3-page--${viewMode}`}>
+      <Header extras={<ViewModeSwitcher value={viewMode} onChange={setViewMode} />} />
 
       <div className="mapv3-body">
         <aside className="mapv3-panel">
@@ -124,7 +139,7 @@ export default function MapPageV3() {
               opacity={0.7}
               attribution='&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Amtliche Vermessung'
             />
-            <MapResizer trigger={String(Boolean(objectInfo))} />
+            <MapResizer trigger={`${viewMode}-${Boolean(objectInfo)}`} />
             <CustomZoomControl />
             <ParcelLayer
               onFeatureSelect={props => setObjectInfo(props ? infoFromParcel(props) : null)}
