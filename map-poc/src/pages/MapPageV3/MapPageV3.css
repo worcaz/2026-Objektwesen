@@ -347,3 +347,30 @@
   .cmp-cell, .cmp-th { overflow-wrap: anywhere; }
   .cmp-th__base { flex-wrap: wrap; }
 }
+
+/* ── Phones: Karte ODER Daten ────────────────────────────── */
+
+.mapv3-peekbtn {
+  display: inline-flex; align-items: center; gap: 5px; margin-left: auto; padding: 5px 11px;
+  border: 1px solid rgba(255, 255, 255, 0.7); border-radius: 999px; background: rgba(255, 255, 255, 0.18);
+  color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+}
+.mapv3-peekbtn + .info-panel__close { margin-left: 4px; }
+
+@media (max-width: 768px) {
+  /* Karte: full map, data panel shrinks to a peek bar (search + title + "Daten") */
+  .mapv3-page--phone.mapv3-page--map .mapv3-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) auto; }
+  .mapv3-page--phone.mapv3-page--map .mapv3-mapwrap { order: -1; }
+  .mapv3-page--phone.mapv3-page--map .mapv3-panel__body,
+  .mapv3-page--phone.mapv3-page--map .mapv3-panel__sub { display: none; }
+  .mapv3-page--phone.mapv3-page--map .mapv3-empty { padding: 10px 14px; flex-direction: row; align-items: center; gap: 10px; }
+  .mapv3-page--phone.mapv3-page--map .mapv3-empty svg,
+  .mapv3-page--phone.mapv3-page--map .mapv3-empty h2,
+  .mapv3-page--phone.mapv3-page--map .mapv3-empty p { display: none; }
+  .mapv3-page--phone.mapv3-page--map .mapv3-empty::before { content: 'Grundstück in der Karte antippen oder suchen'; font-size: 13px; color: #6b7280; flex: 1; }
+
+  /* Daten: full-screen data, map hidden */
+  .mapv3-page--phone.mapv3-page--data .mapv3-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr); }
+  .mapv3-page--phone.mapv3-page--data .mapv3-mapwrap { display: none; }
+  .mapv3-page--phone.mapv3-page--data .mapv3-panel { box-shadow: none; }
+}
