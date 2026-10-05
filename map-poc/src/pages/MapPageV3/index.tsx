@@ -20,6 +20,13 @@ import {
   DATA_PANEL_WIDTH_STORAGE_KEY, DATA_PANEL_DEFAULT_WIDTH,
 } from '../MapPageV2/viewMode';
 
+// Example parcel for the empty state: Grundstück 3814 in Schötz (matches the v2 mockup data).
+const EXAMPLE_INFO: ObjectInfo = {
+  ...buildDummyInfo('80698814', '3814', 'CH000080698814'),
+  flurname: 'Allmend',
+  flaecheGrundbuch: "1'414 m²",
+};
+
 const MAP_CENTER: [number, number] = [47.3925, 8.0442];
 
 function MapResizer({ trigger }: { trigger: string }) {
@@ -138,7 +145,7 @@ export default function MapPageV3() {
               <p>Wähle ein Grundstück in der Karte oder über die Suche. Danach kannst du den heutigen Stand
                 mit früheren Ständen vergleichen und beliebige Stichtage auswählen.</p>
               <button type="button" className="cmp-btn"
-                onClick={() => { const i = buildDummyInfo('3814', '3814'); select(i, `Grundstück ${i.grundstueckNummer}`); }}>
+                onClick={() => { const i = EXAMPLE_INFO; select(i, `Grundstück ${i.grundstueckNummer}`); }}>
                 Beispiel laden
               </button>
             </div>

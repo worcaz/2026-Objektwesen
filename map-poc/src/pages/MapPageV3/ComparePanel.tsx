@@ -11,13 +11,13 @@ import {
 const MAX_COLUMNS = 4;
 const PRESETS = [1, 5, 10, 20, 30];
 
-function LineLabel({ row, line }: { row: CmpRow; line: string }) {
-  if (!row.legend) return <>{line}</>;
-  const fill = row.legend === 'bodenbedeckung' ? getBodenbedeckungColor(line) : getZoneColor(line);
+function RowLabel({ row }: { row: CmpRow }) {
+  if (!row.symbol) return <>{row.label}</>;
+  const fill = row.symbol.variant === 'bodenbedeckung' ? getBodenbedeckungColor(row.symbol.key) : getZoneColor(row.symbol.key);
   return (
     <span className="cmp-legend-line">
-      <TinyLegendSymbol fill={fill} title={line} variant={row.legend} />
-      <span>{line}</span>
+      <TinyLegendSymbol fill={fill} title={row.label} variant={row.symbol.variant} />
+      <span>{row.label}</span>
     </span>
   );
 }
@@ -77,11 +77,11 @@ export default function ComparePanel({ info }: { info: ObjectInfo }) {
   const visibleGroups = groups
     .map(g => {
       const rows: CmpRow[] = [];
-      let pendingSub: CmpRow | null = null;
+      let pendingSubs: CmpRow[] = [];
       for (const r of g.rows) {
-        if (r.kind === 'sub') { pendingSub = r; continue; }
+        if (r.kind === 'sub') { pendingSubs = r.section ? [r] : [...pendingSubs.filter(x => x.section), r]; continue; }
         if (onlyChanges && !rowChanged(r, baseIdx)) continue;
-        if (pendingSub) { rows.push(pendingSub); pendingSub = null; }
+        if (pendingSubs.length) { rows.push(...pendingSubs); pendingSubs = []; }
         rows.push(r);
       }
       const changes = g.rows.filter(r => rowChanged(r, baseIdx)).length;
@@ -188,11 +188,11 @@ export default function ComparePanel({ info }: { info: ObjectInfo }) {
                 ...(isCollapsed ? [] : g.rows.map(row =>
                   row.kind === 'sub' ? (
                     <tr key={row.id} className="cmp-subrow">
-                      <th colSpan={snaps.length + 1} scope="colgroup" className="cmp-sub">{row.label}</th>
+                      <th colSpan={snaps.length + 1} scope="colgroup" className="cmp-sub"><RowLabel row={row} /></th>
                     </tr>
                   ) : (
                     <tr key={row.id}>
-                      <th scope="row" className="cmp-rowlabel">{row.label}</th>
+                      <th scope="row" className="cmp-rowlabel"><RowLabel row={row} /></th>
                       {snaps.map((s, i) => <CompareCell key={s.stichtag} row={row} idx={i} baseIdx={baseIdx} />)}
                     </tr>
                   ),
