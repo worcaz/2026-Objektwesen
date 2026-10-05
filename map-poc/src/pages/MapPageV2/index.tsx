@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { TbLoaderQuarter } from 'react-icons/tb';
-import { MapContainer, TileLayer, WMSTileLayer } from 'react-leaflet';
+import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
+import { LuMap, LuColumns2, LuListTree } from 'react-icons/lu';
 import L from 'leaflet';
 
 
@@ -53,6 +54,8 @@ import SearchPanel from './ObjectInfoPanel';
 import DummyChatbotWidget from './ChatbotWidget';
 import MapLayerSelectorControl, { CustomZoomControl } from './MapLayerSelectorControl';
 import ParcelLayer from './ParcelLayer';
+import type { ViewMode } from './viewMode';
+import { VIEW_MODE_STORAGE_KEY, isViewMode } from './viewMode';
 
 
 // ─── Fixed-position overlays ──────────────────────────────────────────────────
@@ -79,6 +82,43 @@ function ErrorBox({ message, onClose }: { message: string; onClose: () => void }
 }
 
 
+// Leaflet doesn't notice CSS-driven container resizes; re-measure on layout change.
+function MapResizer({ trigger }: { trigger: string }) {
+  const map = useMap();
+  useEffect(() => {
+    const t = setTimeout(() => map.invalidateSize(), 220);
+    return () => clearTimeout(t);
+  }, [map, trigger]);
+  return null;
+}
+
+const VIEW_OPTIONS: { mode: ViewMode; label: string; title: string; Icon: typeof LuMap }[] = [
+  { mode: 'map',    label: 'Karte',  title: 'Kartenzentrierte Ansicht',      Icon: LuMap },
+  { mode: 'hybrid', label: 'Hybrid', title: 'Hybride Ansicht',               Icon: LuColumns2 },
+  { mode: 'data',   label: 'Daten',  title: 'Objektdatenzentrierte Ansicht', Icon: LuListTree },
+];
+
+function ViewModeSwitcher({ value, onChange }: { value: ViewMode; onChange: (m: ViewMode) => void }) {
+  return (
+    <div className="view-switcher" role="group" aria-label="Ansicht wählen">
+      {VIEW_OPTIONS.map(({ mode, label, title, Icon }) => (
+        <button
+          key={mode}
+          type="button"
+          title={title}
+          aria-pressed={value === mode}
+          className={`view-switcher__btn${value === mode ? ' view-switcher__btn--active' : ''}`}
+          onClick={() => onChange(mode)}
+        >
+          <Icon size={15} />
+          <span className="view-switcher__label">{label}</span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+
 // ─── App ─────────────────────────────────────────────────────────────────────
 
 // Map center: Aarau, Switzerland (zoom 16).
@@ -100,6 +140,18 @@ export default function MapPageV2() {
   const [waldgrenzenOpacity, setWaldgrenzenOpacity] = useState(0.9);
   const [nutzungsplanungOpacity, setNutzungsplanungOpacity] = useState(0.8);
   const [gefahrenkarteOpacity, setGefahrenkarteOpacity] = useState(0.8);
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    try {
+      const stored = window.localStorage.getItem(VIEW_MODE_STORAGE_KEY);
+      return isViewMode(stored) ? stored : 'hybrid';
+    } catch {
+      return 'hybrid';
+    }
+  });
+
+  useEffect(() => {
+    try { window.localStorage.setItem(VIEW_MODE_STORAGE_KEY, viewMode); } catch { /* ignore */ }
+  }, [viewMode]);
 
   useEffect(() => {
     if (objectInfo) {
@@ -108,9 +160,11 @@ export default function MapPageV2() {
   }, [objectInfo]);
 
   return (
-    <div className="mapv2-page">
+    <div className={`mapv2-page mapv2-page--${viewMode}${objectInfo ? ' mapv2-page--has-object' : ''}`}>
 
       <Header onAccountMenuOpen={() => setIsLayerSelectorOpen(false)} />
+
+      <ViewModeSwitcher value={viewMode} onChange={setViewMode} />
 
       <MapContainer center={MAP_CENTER} zoom={16} zoomControl={false} className="mapv2-container">
 
@@ -179,6 +233,8 @@ export default function MapPageV2() {
           />
         )}
 
+        <MapResizer trigger={`${viewMode}-${Boolean(objectInfo)}`} />
+
         <CustomZoomControl />
 
         <MapLayerSelectorControl
@@ -212,6 +268,7 @@ export default function MapPageV2() {
           onError={setError}
           onZoomChange={setCurrentZoom}
           hasOpenInfoPanel={Boolean(objectInfo)}
+          viewMode={viewMode}
         />
 
       </MapContainer>
@@ -225,6 +282,7 @@ export default function MapPageV2() {
         onClose={() => setObjectInfo(null)}
         onActivate={() => setIsLayerSelectorOpen(false)}
         onInfoPanelClick={() => setIsLayerSelectorOpen(false)}
+        viewMode={viewMode}
       />
 
       <DummyChatbotWidget />

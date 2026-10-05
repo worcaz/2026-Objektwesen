@@ -1196,3 +1196,112 @@
   cursor: pointer;
   color: #111;
 }
+
+/* ── View mode switcher ──────────────────────────────────── */
+
+.view-switcher {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  z-index: 1600;
+  display: flex;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+}
+
+.view-switcher__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border: none;
+  background: #fff;
+  color: #374151;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.view-switcher__btn + .view-switcher__btn {
+  border-left: 1px solid #e5e7eb;
+}
+
+.view-switcher__btn:hover {
+  background: #f5f9ff;
+}
+
+.view-switcher__btn--active,
+.view-switcher__btn--active:hover {
+  background: rgba(0, 159, 227, 0.9);
+  color: #fff;
+}
+
+@media (max-width: 640px) {
+  .view-switcher__label { display: none; }
+}
+
+/* ── View mode: Karte (map-centered) ─────────────────────── */
+
+.search-panel--map .info-panel {
+  border-radius: 0 0 12px 12px;
+}
+
+.search-panel--map .info-panel__body {
+  max-height: min(40vh, calc(100dvh - 180px));
+}
+
+/* ── View mode: Daten (data-centered) ────────────────────── */
+
+.mapv2-page--data .mapv2-container {
+  transition: margin-left 0.2s ease, width 0.2s ease;
+}
+
+.search-panel--data.search-panel--open {
+  top: 52px;
+  left: 0;
+  bottom: 0;
+  width: min(640px, 100vw) !important;
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  box-shadow: 4px 0 18px rgba(0, 0, 0, 0.12);
+}
+
+.search-panel--data.search-panel--open .search-input {
+  border-radius: 0 !important;
+  box-shadow: none;
+  border-width: 0 0 1px 0;
+}
+
+.search-panel--data.search-panel--open > div:last-child {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.search-panel--data .info-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+}
+
+.search-panel--data .info-panel__body {
+  flex: 1;
+  max-height: none;
+}
+
+@media (min-width: 769px) {
+  .mapv2-page--data.mapv2-page--has-object .mapv2-container {
+    width: calc(100% - min(640px, 100vw));
+    margin-left: min(640px, 100vw);
+    flex: 1;
+  }
+}

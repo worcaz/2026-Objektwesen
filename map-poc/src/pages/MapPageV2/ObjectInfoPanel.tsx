@@ -21,6 +21,8 @@ import type {
 } from './mockData';
 import { buildSearchResults, buildOwnerSearchResults } from './mockData';
 import ExportSection from './ExportSection';
+import type { ViewMode } from './viewMode';
+import { INFO_PANEL_DESKTOP_WIDTH } from './viewMode';
 
 // ─── Object info panel & search ──────────────────────────────────────────────
 
@@ -775,13 +777,14 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
 }
 
 function SearchPanel({
-  objectInfo, onSelect, onClose, onActivate, onInfoPanelClick,
+  objectInfo, onSelect, onClose, onActivate, onInfoPanelClick, viewMode,
 }: {
   objectInfo: ObjectInfo | null;
   onSelect:   (info: ObjectInfo) => void;
   onClose:    () => void;
   onActivate?: () => void;
   onInfoPanelClick?: () => void;
+  viewMode: ViewMode;
 }) {
   const [query,        setQuery]        = useState('');
   const [results,      setResults]      = useState<SearchResult[]>([]);
@@ -837,8 +840,8 @@ function SearchPanel({
 
   return (
     <div
-      className="search-panel"
-      style={{ width: hasPanel ? 'min(520px, calc(100vw - 24px))' : 'min(400px, calc(100vw - 24px))' }}
+      className={`search-panel search-panel--${viewMode}${hasPanel ? ' search-panel--open' : ''}`}
+      style={{ width: hasPanel ? `min(${INFO_PANEL_DESKTOP_WIDTH[viewMode]}px, calc(100vw - 24px))` : 'min(400px, calc(100vw - 24px))' }}
     >
       {/* Search input */}
       <div className="search-input-wrapper">

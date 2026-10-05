@@ -3,6 +3,8 @@ import { GeoJSON as GeoJSONLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import type { Feature, FeatureCollection } from 'geojson';
 import type { RealParcelProps } from '../../wfsService';
+import type { ViewMode } from './viewMode';
+import { INFO_PANEL_DESKTOP_WIDTH } from './viewMode';
 import {
   fetchParcelsByBbox,
   buildMockFeatures,
@@ -10,7 +12,6 @@ import {
 } from '../../wfsService';
 
 const DESKTOP_AUTO_CENTER_MIN_WIDTH = 1024;
-const INFO_PANEL_DESKTOP_WIDTH = 520;
 const INFO_PANEL_LEFT_MARGIN = 24;
 
 // ─── Vector layer styles ─────────────────────────────────────────────────────
@@ -31,11 +32,13 @@ const VECTOR_HIGHLIGHT_STYLE: L.PathOptions = {
   fillOpacity: 0.25,
 };
 
-function autoCenterParcelOnDesktop(map: L.Map, latlng: L.LatLng): boolean {
+function autoCenterParcelOnDesktop(map: L.Map, latlng: L.LatLng, viewMode: ViewMode): boolean {
+  // Map view: panel is small and the map stays put. Data view: map is already resized beside the panel.
+  if (viewMode !== 'hybrid') return false;
   if (typeof window === 'undefined' || window.innerWidth < DESKTOP_AUTO_CENTER_MIN_WIDTH) return false;
 
   const size = map.getSize();
-  const panelWidth = Math.min(INFO_PANEL_DESKTOP_WIDTH, Math.max(0, size.x - (INFO_PANEL_LEFT_MARGIN * 2)));
+  const panelWidth = Math.min(INFO_PANEL_DESKTOP_WIDTH.hybrid, Math.max(0, size.x - (INFO_PANEL_LEFT_MARGIN * 2)));
   const visibleStartX = INFO_PANEL_LEFT_MARGIN + panelWidth;
 
   if (panelWidth <= 0 || size.x <= visibleStartX + 120) return false;
@@ -78,9 +81,10 @@ interface ParcelLayerProps {
   onError:          (msg: string | null) => void;
   onZoomChange:     (zoom: number) => void;
   hasOpenInfoPanel: boolean;
+  viewMode:         ViewMode;
 }
 
-function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel }: ParcelLayerProps) {
+function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel, viewMode }: ParcelLayerProps) {
   const map = useMap();
 
   const [parcels,  setParcels]  = useState<FeatureCollection | null>(null);
@@ -96,9 +100,9 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange, 
   const skipNextMoveLoadRef = useRef(false);
 
   // Keep the latest callback props in a ref so event handlers never go stale.
-  const cbRef = useRef({ onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel });
+  const cbRef = useRef({ onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel, viewMode });
   useEffect(() => {
-    cbRef.current = { onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel };
+    cbRef.current = { onFeatureSelect, onLoadingChange, onError, onZoomChange, hasOpenInfoPanel, viewMode };
   });
 
   // Stable async function — recreated only when `map` changes (never in practice).
@@ -180,7 +184,7 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange, 
       highlightedRef.current = layer as L.Path;
 
       if (!cbRef.current.hasOpenInfoPanel) {
-        const didAutoCenter = autoCenterParcelOnDesktop(map, event.latlng);
+        const didAutoCenter = autoCenterParcelOnDesktop(map, event.latlng, cbRef.current.viewMode);
         if (didAutoCenter) {
           skipNextMoveLoadRef.current = true;
         }
