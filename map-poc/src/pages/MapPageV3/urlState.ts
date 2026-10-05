@@ -11,6 +11,9 @@ export interface ShareState {
   dates: string[];
   baseDate: string;
   pDate: string;
+  /** false = single Stand view, true = comparison */
+  compare: boolean;
+  stand: string;
   view?: ViewMode;
 }
 
@@ -24,10 +27,15 @@ const strToRef = (s: string): ParcelRef | null => {
 export function serializeState(s: ShareState): string {
   const p = new URLSearchParams();
   if (s.parcels.length) p.set('gs', s.parcels.map(refToStr).join(','));
-  p.set('m', s.mode === 'zeit' ? 'z' : 'p');
-  p.set('d', s.dates.join(','));
-  p.set('b', s.baseDate);
-  if (s.mode === 'parzellen') p.set('pd', s.pDate);
+  if (s.compare) {
+    p.set('c', '1');
+    p.set('m', s.mode === 'zeit' ? 'z' : 'p');
+    p.set('d', s.dates.join(','));
+    p.set('b', s.baseDate);
+    if (s.mode === 'parzellen') p.set('pd', s.pDate);
+  } else {
+    p.set('st', s.stand);
+  }
   if (s.view) p.set('v', s.view);
   return p.toString();
 }
@@ -49,6 +57,11 @@ export function parseState(search: string): Partial<ShareState> {
   }
   const b = p.get('b');
   if (b && ISO.test(b)) out.baseDate = b;
+  const c = p.get('c');
+  if (c === '1') out.compare = true;
+  else if (c === null && (m === 'p' || (out.dates && out.dates.length >= 2))) out.compare = true; // links from before the single view
+  const st = p.get('st');
+  if (st && ISO.test(st) && st <= TODAY_ISO) out.stand = st;
   const pd = p.get('pd');
   if (pd && ISO.test(pd)) out.pDate = pd;
   const v = p.get('v');

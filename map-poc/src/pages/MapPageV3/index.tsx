@@ -51,6 +51,8 @@ const initial = (() => {
     dates,
     baseDate: s.baseDate && dates.includes(s.baseDate) ? s.baseDate : sorted[0],
     pDate: s.pDate ?? TODAY_ISO,
+    compare: s.compare ?? false,
+    stand: s.stand ?? TODAY_ISO,
     view: s.view,
   };
 })();
@@ -63,6 +65,8 @@ export default function MapPageV3() {
   const [dates, setDates] = useState<string[]>(initial.dates);
   const [baseDate, setBaseDate] = useState<string>(initial.baseDate);
   const [pDate, setPDate] = useState<string>(initial.pDate);
+  const [compare, setCompare] = useState<boolean>(initial.compare);
+  const [stand, setStand] = useState<string>(initial.stand);
 
   // Map: Kartenstand (historic imagery / outlines)
   const [mapDate, setMapDate] = useState<string>(() => {
@@ -120,35 +124,37 @@ export default function MapPageV3() {
 
   // Keep the map date valid when Stichtage change.
   useEffect(() => {
+    if (!compare) return;
     const options = [...new Set(dates)];
     if (!options.includes(mapDate)) setMapDate([...options].sort().reverse()[1] ?? options[0]);
-  }, [dates, mapDate]);
+  }, [compare, dates, mapDate]);
+
+  // Without a comparison the map simply shows the chosen Stand.
+  const effectiveMapDate = compare ? mapDate : stand;
 
   // Keep the search field in sync with what is shown (map click, search, example, link).
   const primaryEgrid = primary?.egrid;
   useEffect(() => {
-    setQuery(mode === 'zeit' && primary ? `Grundstück ${primary.grundstueckNummer}` : '');
+    setQuery((!compare || mode === 'zeit') && primary ? `Grundstück ${primary.grundstueckNummer}` : '');
     setResults([]);
     setShowDropdown(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [primaryEgrid, mode]);
+  }, [primaryEgrid, mode, compare]);
 
   // ── Selection logic ──
   const selectParcel = useCallback((info: ObjectInfo, geom: Geometry | null, focus: boolean) => {
-    // A comparison needs at least two Stichtage; make sure a first selection starts with something to compare.
-    setDates(prev => (prev.length >= 2 ? prev : [TODAY_ISO, yearsAgoIso(10)]));
     setParcels(prev => {
-      if (mode === 'parzellen' && prev.length > 0) {
+      if (compare && mode === 'parzellen' && prev.length > 0) {
         if (prev.some(x => x.egrid === info.egrid)) return prev;
         return prev.length >= MAX_COLUMNS ? prev : [...prev, info];
       }
       return [info];
     });
-    if (mode !== 'parzellen' || parcels.length === 0) {
+    if (!compare || mode !== 'parzellen' || parcels.length === 0) {
       setGeometry(geom);
       if (focus) setFocusToken(t => t + 1);
     }
-  }, [mode, parcels.length]);
+  }, [compare, mode, parcels.length]);
 
   const selectFromSearch = (info: ObjectInfo) => {
     setShowDropdown(false);
@@ -166,15 +172,37 @@ export default function MapPageV3() {
     });
   };
 
+  const startCompare = (kind: CompareMode, withDate?: string) => {
+    setCompare(true);
+    setMode(kind);
+    if (kind === 'zeit') {
+      const other = withDate && withDate !== TODAY_ISO ? withDate : yearsAgoIso(10);
+      setDates([TODAY_ISO, other]);
+      setBaseDate(TODAY_ISO);
+      setMapDate(other);
+    } else {
+      setPDate(stand);
+    }
+  };
+
+  const endCompare = () => {
+    setStand(mode === 'zeit' ? (baseDate || TODAY_ISO) : pDate);
+    setCompare(false);
+    setMode('zeit');
+    setParcels(prev => prev.slice(0, 1));
+  };
+
   const addParcelRef = (ref: ParcelRef) => {
+    setCompare(true);
     setMode('parzellen');
+    setPDate(prev => prev || TODAY_ISO);
     setParcels(prev => (prev.some(x => x.egrid === ref.egrid) || prev.length >= MAX_COLUMNS ? prev : [...prev, infoFromRef(ref)]));
   };
 
   // ── Share link / URL state ──
   const shareState = useMemo(() => ({
-    parcels: parcels.map(refOf), mode, dates, baseDate, pDate, view: viewMode,
-  }), [parcels, mode, dates, baseDate, pDate, viewMode]);
+    parcels: parcels.map(refOf), mode, dates, baseDate, pDate, compare, stand, view: viewMode,
+  }), [parcels, mode, dates, baseDate, pDate, compare, stand, viewMode]);
 
   useEffect(() => {
     const qs = parcels.length ? `?${serializeState(shareState)}` : window.location.pathname;
@@ -198,12 +226,14 @@ export default function MapPageV3() {
     const h = buildHistory(primary);
     return {
       now: parseArea(primary.flaecheGrundbuch),
-      then: parseArea(snapshotAt(h, mapDate).info.flaecheGrundbuch),
+      then: parseArea(snapshotAt(h, effectiveMapDate).info.flaecheGrundbuch),
     };
-  }, [primary, mapDate]);
+  }, [primary, effectiveMapDate]);
 
-  const mapDateOptions = [...new Set(dates)].sort().reverse();
-  const panelTitle = mode === 'zeit'
+  const mapDateOptions = compare ? [...new Set(dates)].sort().reverse() : [stand];
+  const panelTitle = !compare
+    ? `Grundstück ${primary?.grundstueckNummer ?? ''}`
+    : mode === 'zeit'
     ? `Historischer Vergleich · Grundstück ${primary?.grundstueckNummer ?? ''}`
     : `Grundstücksvergleich · ${parcels.length} ${parcels.length === 1 ? 'Grundstück' : 'Grundstücke'}`;
 
@@ -225,7 +255,7 @@ export default function MapPageV3() {
                 onChange={e => onSearchInput(e.target.value)}
                 onFocus={() => results.length > 0 && setShowDropdown(true)}
                 onBlur={() => setTimeout(() => setShowDropdown(false), 150)}
-                placeholder={mode === 'parzellen' && primary ? 'Weiteres Grundstück suchen…' : 'Grundstück suchen…'}
+                placeholder={compare && mode === 'parzellen' && primary ? 'Weiteres Grundstück suchen…' : 'Grundstück suchen…'}
               />
             </div>
             {showDropdown && results.length > 0 && (
@@ -249,7 +279,7 @@ export default function MapPageV3() {
                 </button>
               </div>
               <div className="mapv3-panel__sub">
-                {mode === 'zeit'
+                {!compare || mode === 'zeit'
                   ? `${primary.gemeinde} · ${primary.egrid}`
                   : parcels.map(i => `Nr. ${i.grundstueckNummer}`).join(' · ')}
               </div>
@@ -267,15 +297,20 @@ export default function MapPageV3() {
                   onRemoveParcel={removeParcel}
                   onAddParcelRef={addParcelRef}
                   onCopyLink={copyLink}
+                  compare={compare}
+                  stand={stand}
+                  onStandChange={setStand}
+                  onStartCompare={startCompare}
+                  onEndCompare={endCompare}
                 />
               </div>
             </>
           ) : (
             <div className="mapv3-empty">
               <LuHistory size={34} />
-              <h2>Historische Daten vergleichen</h2>
-              <p>Wähle ein Grundstück in der Karte oder über die Suche. Danach kannst du den heutigen Stand
-                mit früheren Ständen vergleichen, beliebige Stichtage wählen oder mehrere Grundstücke nebeneinander stellen.</p>
+              <h2>Objektdaten und ihre Geschichte</h2>
+              <p>Wähle ein Grundstück in der Karte oder über die Suche. Du siehst dessen Daten und kannst sie zu einem
+                früheren Stand ansehen. Auf Wunsch vergleichst du anschliessend Stände oder mehrere Grundstücke.</p>
               <button type="button" className="cmp-btn"
                 onClick={() => selectFromSearch(EXAMPLE_INFO)}>
                 Beispiel laden
@@ -307,7 +342,7 @@ export default function MapPageV3() {
               hasParcel={Boolean(primary)}
               areaNow={areas.now}
               areaThen={areas.then}
-              mapDate={mapDate}
+              mapDate={effectiveMapDate}
               showAerial={showAerial}
               blend={blend}
               showOutlines={showOutlines}
@@ -328,14 +363,15 @@ export default function MapPageV3() {
             <button type="button" className="mapv3-mapctl__toggle" aria-expanded={mapPanelOpen}
               onClick={() => setMapPanelOpen(o => !o)}>
               <LuLayers size={15} /> Kartenstand
-              <span className="mapv3-mapctl__date">{mapDate === TODAY_ISO ? 'Heute' : formatDate(mapDate)}</span>
+              <span className="mapv3-mapctl__date">{effectiveMapDate === TODAY_ISO ? 'Heute' : formatDate(effectiveMapDate)}</span>
               <LuChevronUp size={15} className="mapv3-mapctl__chev" />
             </button>
             {mapPanelOpen && (
               <div className="mapv3-mapctl__body">
                 <label className="mapv3-mapctl__row">
                   <span>Stichtag</span>
-                  <select value={mapDate} onChange={e => setMapDate(e.target.value)} disabled={!primary}>
+                  <select value={effectiveMapDate} onChange={e => setMapDate(e.target.value)} disabled={!primary || !compare}
+                    title={compare ? undefined : 'Der Kartenstand folgt dem angezeigten Stand'}>
                     {mapDateOptions.map(d => <option key={d} value={d}>{d === TODAY_ISO ? 'Heute' : formatDate(d)}</option>)}
                   </select>
                 </label>
