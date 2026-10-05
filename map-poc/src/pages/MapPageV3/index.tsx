@@ -76,7 +76,7 @@ export default function MapPageV3() {
   const [showAerial, setShowAerial] = useState(false);
   const [blend, setBlend] = useState(60);
   const [showOutlines, setShowOutlines] = useState(true);
-  const [mapPanelOpen, setMapPanelOpen] = useState(true);
+  const [mapPanelOpen, setMapPanelOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.('(max-width: 768px)').matches));
   const [aerialStatus, setAerialStatus] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -368,16 +368,24 @@ export default function MapPageV3() {
             </button>
             {mapPanelOpen && (
               <div className="mapv3-mapctl__body">
-                <label className="mapv3-mapctl__row">
-                  <span>Stichtag</span>
-                  <select value={effectiveMapDate} onChange={e => setMapDate(e.target.value)} disabled={!primary || !compare}
-                    title={compare ? undefined : 'Der Kartenstand folgt dem angezeigten Stand'}>
-                    {mapDateOptions.map(d => <option key={d} value={d}>{d === TODAY_ISO ? 'Heute' : formatDate(d)}</option>)}
-                  </select>
-                </label>
+                {compare ? (
+                  <label className="mapv3-mapctl__row">
+                    <span>Stichtag</span>
+                    <select value={effectiveMapDate} onChange={e => setMapDate(e.target.value)} disabled={!primary}>
+                      {mapDateOptions.map(d => <option key={d} value={d}>{d === TODAY_ISO ? 'Heute' : formatDate(d)}</option>)}
+                    </select>
+                  </label>
+                ) : (
+                  <div className="mapv3-mapctl__row">
+                    <span>Stand</span>
+                    <span className="mapv3-mapctl__fixed">{stand === TODAY_ISO ? 'Heute' : formatDate(stand)} <small>(folgt der Tabelle)</small></span>
+                  </div>
+                )}
                 <label className="mapv3-mapctl__check">
                   <input type="checkbox" checked={showOutlines} onChange={e => setShowOutlines(e.target.checked)} />
-                  Grenzen: heute <span className="mapv3-key mapv3-key--now" /> / Stichtag <span className="mapv3-key mapv3-key--then" />
+                  {compare || stand !== TODAY_ISO
+                    ? <>Grenzen: heute <span className="mapv3-key mapv3-key--now" /> / Stichtag <span className="mapv3-key mapv3-key--then" /></>
+                    : <>Parzellengrenze <span className="mapv3-key mapv3-key--now" /></>}
                 </label>
                 <label className="mapv3-mapctl__check">
                   <input type="checkbox" checked={showAerial} onChange={e => setShowAerial(e.target.checked)} />

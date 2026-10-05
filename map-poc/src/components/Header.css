@@ -612,3 +612,8 @@
 }
 
 .header-right { gap: 10px; }
+
+/* Pages that put controls into the header: make room on phones by dropping the product name. */
+@media (max-width: 560px) {
+  .header--has-extras .header-logo-text { display: none; }
+}

@@ -283,3 +283,67 @@
 .cmp-startmenu b { display: block; font-size: 13px; }
 .cmp-startmenu small { display: block; font-size: 11.5px; color: #6b7280; margin-top: 1px; }
 .cmp-summary--teaser { background: #f9fafb; border-color: #e5e7eb; color: #374151; }
+
+.mapv3-mapctl__fixed { font-size: 12.5px; font-weight: 600; }
+.mapv3-mapctl__fixed small { font-weight: 400; color: #6b7280; }
+.cmp-pair { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 8px 0 0; }
+
+/* ── Phones ──────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+  .mapv3-body { grid-template-rows: 30% 1fr; }
+  .mapv3-page--map .mapv3-body { grid-template-rows: 58% 1fr; }
+  .mapv3-page--data .mapv3-body { grid-template-rows: 14% 1fr; }
+}
+
+@media (max-width: 640px) {
+  .cmp-controls { padding: 8px 10px 6px; gap: 6px; }
+  .cmp-body { padding: 0 10px 20px; }
+  .cmp-tool__txt { display: none; }
+  .cmp-tool { padding: 7px 10px; }
+  .cmp-th--label, .cmp-rowlabel { min-width: 104px; width: 104px; font-size: 11.5px; }
+  .cmp-th, .cmp-cell { padding: 7px 8px; }
+  .cmp-th { min-width: 120px; }
+  .cmp-cell { font-size: 12.5px; }
+  .cmp-search { min-width: 100%; order: -1; }
+  .cmp-summary { font-size: 12px; }
+  .cmp-modes { gap: 6px; }
+
+  /* Menus become bottom sheets */
+  .cmp-pop {
+    position: fixed; left: 0; right: 0; bottom: 0; top: auto; width: auto; min-width: 0; max-height: 70dvh; overflow: auto;
+    border-radius: 14px 14px 0 0; padding: 14px 16px 22px; z-index: 3000; box-shadow: 0 -8px 28px rgba(0, 0, 0, 0.25);
+  }
+  .cmp-addpop, .cmp-startmenu { width: auto; max-width: none; margin: 0; }
+  .cmp-startmenu button { padding: 12px 8px; }
+}
+
+/* Touch: bigger hit areas on the timeline and tools */
+@media (pointer: coarse) {
+  .tl-track { height: 82px; }
+  .tl-line { top: 42px; }
+  .tl-tick { top: 62px; }
+  .tl-event { top: 34px; width: 28px; height: 28px; margin-left: -14px; }
+  .tl-event::before { left: 9px; top: 9px; }
+  .tl-pin__handle { top: 16px; width: 44px; height: 56px; left: -22px; }
+  .tl-pin__handle::before { left: 15px; top: 20px; width: 16px; height: 16px; }
+  .tl-pin__x { padding: 4px 7px; }
+  .cmp-preset, .cmp-tool { min-height: 36px; }
+}
+
+/* Phones: controls scroll away with the content so the table always gets the screen. */
+@media (max-width: 640px) {
+  .mapv3-panel__body { overflow: auto; display: block; }
+  .cmp { display: block; }
+  .cmp-controls { position: static; border-bottom: none; }
+  .cmp-body { overflow: visible; }
+}
+
+/* Phones show at most two data columns: split the width evenly and let long values wrap. */
+@media (max-width: 640px) {
+  .cmp-table { table-layout: fixed; width: 100%; min-width: 0; }
+  .cmp-th--label, .cmp-rowlabel { width: 96px; min-width: 96px; overflow-wrap: anywhere; hyphens: auto; font-size: 11px; }
+  .cmp-th { min-width: 0; }
+  .cmp-cell, .cmp-th { overflow-wrap: anywhere; }
+  .cmp-th__base { flex-wrap: wrap; }
+}

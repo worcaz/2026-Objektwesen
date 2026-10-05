@@ -210,7 +210,8 @@ export function cellChanged(cell: Cell, base: Cell): boolean {
   return Boolean(cell.absent) !== Boolean(base.absent) || cell.lines.join('\n') !== base.lines.join('\n');
 }
 
-export function rowChanged(row: CmpRow, baseIdx: number): boolean {
+/** Does any column (optionally only those in `only`) differ from the base column? */
+export function rowChanged(row: CmpRow, baseIdx: number, only?: number[]): boolean {
   if (row.kind === 'sub') return false;
-  return row.cells.some((c, i) => i !== baseIdx && cellChanged(c, row.cells[baseIdx]));
+  return row.cells.some((c, i) => i !== baseIdx && (!only || only.includes(i)) && cellChanged(c, row.cells[baseIdx]));
 }

@@ -298,7 +298,7 @@ export default function Header({ onAccountMenuOpen, extras }: { onAccountMenuOpe
 
   return (
     <>
-      <header className="header">
+      <header className={`header${extras ? ' header--has-extras' : ''}`}>
         <button
           type="button"
           onClick={() => {

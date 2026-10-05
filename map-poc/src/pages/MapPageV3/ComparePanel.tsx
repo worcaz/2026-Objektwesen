@@ -14,6 +14,7 @@ import {
 } from './historyData';
 import type { CompareMode } from './urlState';
 import Timeline from './Timeline';
+import { useMedia } from './useMedia';
 import { exportCsv, exportPdf } from './exportCompare';
 
 export const MAX_COLUMNS = 4;
@@ -100,11 +101,11 @@ function Popover({ label, icon, children, align = 'left', primary = false }: { l
   const ref = useRef<HTMLDivElement | null>(null);
   useEffect(() => {
     if (!open) return;
-    const onDown = (e: MouseEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
+    const onDown = (e: PointerEvent) => { if (!ref.current?.contains(e.target as Node)) setOpen(false); };
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setOpen(false); };
-    document.addEventListener('mousedown', onDown);
+    document.addEventListener('pointerdown', onDown);
     document.addEventListener('keydown', onKey);
-    return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
+    return () => { document.removeEventListener('pointerdown', onDown); document.removeEventListener('keydown', onKey); };
   }, [open]);
   return (
     <div className="cmp-popwrap" ref={ref}>
@@ -134,7 +135,9 @@ export default function ComparePanel(p: ComparePanelProps) {
   const [openEvents, setOpenEvents] = useState<Set<string>>(new Set());
   const [hl, setHl] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
-  const [controlsOpen, setControlsOpen] = useState(true);
+  const narrow = useMedia('(max-width: 640px)');
+  const [controlsOpen, setControlsOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches));
+  const [pairIdx, setPairIdx] = useState(1);
   const eventRefs = useRef<Record<string, HTMLLIElement | null>>({});
 
   const cols: Col[] = useMemo(() => {
@@ -167,6 +170,11 @@ export default function ComparePanel(p: ComparePanelProps) {
     ? Math.max(0, sortedDates.indexOf(baseDate))
     : Math.min(baseParcel, cols.length - 1);
   const groups = useMemo(() => buildGroups(cols.map(c => c.info)), [cols]);
+
+  // Phones: show only the base and one other column at a time (swap via chips).
+  const pairMode = narrow && compare && cols.length > 2;
+  const activePair = pairIdx !== baseIdx && pairIdx >= 0 && pairIdx < cols.length ? pairIdx : cols.findIndex((_, i) => i !== baseIdx);
+  const shownIdx: number[] = pairMode ? [baseIdx, activePair].sort((a, b) => a - b) : cols.map((_, i) => i);
   // With a single column there is nothing to diff, so show everything.
   const onlyChanges = onlyChangesPref && cols.length > 1;
 
@@ -196,19 +204,19 @@ export default function ComparePanel(p: ComparePanelProps) {
       let pending: CmpRow[] = [];
       for (const r of g.rows) {
         if (r.kind === 'sub') { pending = r.section ? [r] : [...pending.filter(x => x.section), r]; continue; }
-        if (onlyChanges && !rowChanged(r, baseIdx)) continue;
+        if (onlyChanges && !rowChanged(r, baseIdx, shownIdx)) continue;
         if (!rowMatches(r)) continue;
         if (pending.length) { rows.push(...pending); pending = []; }
         rows.push(r);
       }
-      const changes = g.rows.filter(r => rowChanged(r, baseIdx)).length;
+      const changes = g.rows.filter(r => rowChanged(r, baseIdx, shownIdx)).length;
       return { ...g, rows, changes };
     })
     .filter(g => (!onlyChanges && !q) || g.rows.length > 0);
 
   // ── Zusammenfassung ──
-  const totalChanged = groups.reduce((n, g) => n + g.rows.filter(r => rowChanged(r, baseIdx)).length, 0);
-  const changedGroups = groups.filter(g => g.rows.some(r => rowChanged(r, baseIdx))).length;
+  const totalChanged = groups.reduce((n, g) => n + g.rows.filter(r => rowChanged(r, baseIdx, shownIdx)).length, 0);
+  const changedGroups = groups.filter(g => g.rows.some(r => rowChanged(r, baseIdx, shownIdx))).length;
   const summary = useMemo(() => {
     if (!compare) return '';
     if (mode !== 'zeit') {
@@ -304,19 +312,19 @@ export default function ComparePanel(p: ComparePanelProps) {
                 <LuGitBranch size={14} /> Grundstücke
               </button>
               <button type="button" className="cmp-tool" onClick={p.onEndCompare} title="Zurück zur Einzelansicht">
-                <LuX size={14} /> Vergleich beenden
+                <LuX size={14} /> <span>Beenden</span>
               </button>
             </>
           )}
           <span className="cmp-modes__spacer" />
           <button type="button" className="cmp-tool" onClick={copyLink} title="Link zu diesem Vergleich kopieren">
-            {copied ? <LuCheck size={14} /> : <LuLink size={14} />} {copied ? 'Kopiert' : 'Link'}
+            {copied ? <LuCheck size={14} /> : <LuLink size={14} />} <span className="cmp-tool__txt">{copied ? 'Kopiert' : 'Link'}</span>
           </button>
           <button type="button" className="cmp-tool" onClick={() => exportCsv(exportData(), `vergleich-${primary.grundstueckNummer}.csv`)} title="Als Excel-Tabelle (CSV) exportieren">
-            <LuFileSpreadsheet size={14} /> Excel
+            <LuFileSpreadsheet size={14} /> <span className="cmp-tool__txt">Excel</span>
           </button>
           <button type="button" className="cmp-tool" onClick={() => { if (!exportPdf(exportData())) window.alert('Bitte Pop-ups für diese Seite erlauben.'); }} title="Als PDF drucken / speichern">
-            <LuPrinter size={14} /> PDF
+            <LuPrinter size={14} /> <span className="cmp-tool__txt">PDF</span>
           </button>
         </div>
 
@@ -451,11 +459,23 @@ export default function ComparePanel(p: ComparePanelProps) {
       </div>
 
       <div className="cmp-body">
+        {pairMode && (
+          <div className="cmp-pair" role="group" aria-label="Vergleichen mit">
+            <span className="cmp-muted">{cols[baseIdx].title} vergleichen mit:</span>
+            {cols.map((c, i) => i === baseIdx ? null : (
+              <button key={c.key} type="button" aria-pressed={i === activePair}
+                className={`cmp-preset${i === activePair ? ' cmp-preset--on' : ''}`} onClick={() => setPairIdx(i)}>
+                {c.title}
+              </button>
+            ))}
+          </div>
+        )}
         <table className="cmp-table">
           <thead>
             <tr>
               <th className="cmp-th cmp-th--label" />
-              {cols.map((c, i) => {
+              {shownIdx.map(i => {
+                const c = cols[i];
                 const isBase = i === baseIdx;
                 return (
                   <th key={c.key} className={`cmp-th${isBase ? ' cmp-th--base' : ''}`}>
@@ -479,7 +499,7 @@ export default function ComparePanel(p: ComparePanelProps) {
               const isCollapsed = collapsed.has(g.id);
               return [
                 <tr key={g.id} className="cmp-grouprow" onClick={() => setCollapsed(prev => toggleIn(prev, g.id))}>
-                  <th colSpan={cols.length + 1} scope="colgroup" className="cmp-group">
+                  <th colSpan={shownIdx.length + 1} scope="colgroup" className="cmp-group">
                     <span className="cmp-group__inner">
                       {isCollapsed ? <LuChevronRight size={15} /> : <LuChevronDown size={15} />}
                       {g.title}
@@ -492,13 +512,13 @@ export default function ComparePanel(p: ComparePanelProps) {
                 ...(isCollapsed ? [] : g.rows.map(row =>
                   row.kind === 'sub' ? (
                     <tr key={row.id} className="cmp-subrow">
-                      <th colSpan={cols.length + 1} scope="colgroup" className="cmp-sub"><RowLabel row={row} /></th>
+                      <th colSpan={shownIdx.length + 1} scope="colgroup" className="cmp-sub"><RowLabel row={row} /></th>
                     </tr>
                   ) : (
                     <tr key={row.id}>
                       <th scope="row" className="cmp-rowlabel"><RowLabel row={row} /></th>
-                      {cols.map((c, i) => (
-                        <CompareCell key={c.key} row={row} idx={i} baseIdx={baseIdx} events={eventsFor(row, c)} onJump={jumpTo} />
+                      {shownIdx.map(i => (
+                        <CompareCell key={cols[i].key} row={row} idx={i} baseIdx={baseIdx} events={eventsFor(row, cols[i])} onJump={jumpTo} />
                       ))}
                     </tr>
                   ),
@@ -507,7 +527,7 @@ export default function ComparePanel(p: ComparePanelProps) {
             })}
             {visibleGroups.length === 0 && (
               <tr>
-                <td className="cmp-cell cmp-empty-row" colSpan={cols.length + 1}>
+                <td className="cmp-cell cmp-empty-row" colSpan={shownIdx.length + 1}>
                   {onlyChanges && !hasDiffs && !q
                     ? <>Zwischen den gewählten Ständen gibt es keine Unterschiede. <button type="button" className="cmp-linkbtn" onClick={() => setOnlyChanges(false)}>Alle Felder anzeigen</button></>
                     : 'Keine Einträge für die gewählten Filter.'}
