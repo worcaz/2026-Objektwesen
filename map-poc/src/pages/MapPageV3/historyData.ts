@@ -6,12 +6,31 @@ import { buildDummyInfo } from '../MapPageV2/mockData';
 // newest first. The state at a given Stichtag is derived from the current state by
 // reverting every event that happened after that date.
 
+export interface ParcelRef {
+  nummer: string;
+  egrid: string;
+}
+
 export interface HistoryEvent {
   id: string;
   /** ISO date (yyyy-mm-dd) */
   date: string;
+  /** Event type, also used as filter category */
   title: string;
   description: string;
+  /** Comparison row ids this event changes (matched as id === p || id.startsWith(p + '-')) */
+  affects: string[];
+  /** Authority that issued the change */
+  stelle: string;
+  /** Reference number of the underlying document */
+  beleg: string;
+  /** Parcels this parcel was created from (Teilung / Zusammenlegung) */
+  herkunft?: ParcelRef[];
+}
+
+/** Does a change event explain a difference in the given comparison row? */
+export function eventAffectsRow(ev: HistoryEvent, rowId: string): boolean {
+  return ev.affects.some(p => rowId === p || rowId.startsWith(p + '-'));
 }
 
 export interface ParcelHistory {
@@ -76,7 +95,7 @@ const TEMPLATES: EventTemplate[] = [
     applicable: a => a.gebaeude.length > 1,
   },
   {
-    title: 'Mutation (Flächenänderung)',
+    title: 'Mutation (Teilung / Zusammenlegung)',
     describe: (cur, prev) => `Grundstücksfläche ${prev.flaecheGrundbuch} → ${cur.flaecheGrundbuch}`,
     revert: (a, _alt, h) => {
       const factor = 1.07 + (h % 18) / 100;
@@ -182,6 +201,31 @@ const TEMPLATES: EventTemplate[] = [
   },
 ];
 
+
+interface EventMeta {
+  affects: string[];
+  prefix: string;
+  stelle: (after: ObjectInfo) => string;
+}
+
+const EVENT_META: Record<string, EventMeta> = {
+  'Handänderung':                       { affects: ['owner', 'form', 'erwerb'], prefix: 'Tagebuch-Nr.', stelle: i => i.grundbuchamtKontakt.office },
+  'Neubau Gebäude':                     { affects: ['geb'], prefix: 'Baubewilligung', stelle: i => `Gemeinde ${i.gemeinde}` },
+  'Mutation (Teilung / Zusammenlegung)': { affects: ['flaeche'], prefix: 'Mutations-Nr.', stelle: i => i.nachfuehrungsgeometer.office },
+  'Revision Nutzungsplanung':           { affects: ['zone', 'boden'], prefix: 'RRB-Nr.', stelle: i => `Gemeinde ${i.gemeinde} / Regierungsrat` },
+  'Neuschätzung Katasterwert':          { affects: ['kat'], prefix: 'Schätzungs-Nr.', stelle: () => 'Dienststelle Steuern' },
+  'Grundpfandrecht errichtet':          { affects: ['pfand'], prefix: 'Tagebuch-Nr.', stelle: i => i.grundbuchamtKontakt.office },
+  'Dienstbarkeit begründet':            { affects: ['dienst'], prefix: 'Tagebuch-Nr.', stelle: i => i.grundbuchamtKontakt.office },
+  'Umbau / Neubewertung Gebäude':       { affects: ['geb'], prefix: 'Schätzung GVL-Nr.', stelle: () => 'Gebäudeversicherung Luzern (GVL)' },
+  'Bauprojekt abgeschlossen':           { affects: ['bp'], prefix: 'Baubewilligung', stelle: i => `Gemeinde ${i.gemeinde}` },
+  'Gemeindefusion / Gebietsänderung':   { affects: ['gemeinde', 'gb'], prefix: 'RRB-Nr.', stelle: () => 'Kanton Luzern, Regierungsrat' },
+  'Flurnamen-Anpassung':                { affects: ['flur'], prefix: 'Verfügung-Nr.', stelle: i => i.nachfuehrungsgeometer.office },
+  'Wechsel Nachführungsgeometer':       { affects: ['ng'], prefix: 'Verfügung-Nr.', stelle: () => 'Amt für Geoinformation' },
+  'Neuorganisation Grundbuchamt':       { affects: ['gba'], prefix: 'Verfügung-Nr.', stelle: () => 'Justiz- und Sicherheitsdepartement' },
+  'Grundbuchgeschäft abgeschlossen':    { affects: ['offen'], prefix: 'Tagebuch-Nr.', stelle: i => i.grundbuchamtKontakt.office },
+  'Anmerkung eingetragen':              { affects: ['anm'], prefix: 'Tagebuch-Nr.', stelle: i => i.grundbuchamtKontakt.office },
+};
+
 export function buildHistory(info: ObjectInfo): ParcelHistory {
   const seed = info.egrid + info.grundstueckNummer;
   const h = hashStr(seed);
@@ -214,11 +258,27 @@ export function buildHistory(info: ObjectInfo): ParcelHistory {
     used.add(idx);
     const tpl = TEMPLATES[idx];
     const before = tpl.revert(after, alt, hashStr(seed + 'r' + i));
+    const meta = EVENT_META[tpl.title];
+    const hr = hashStr(seed + 'b' + i);
+    const nummerNum = parseInt(info.grundstueckNummer, 10) || 1000;
+    const herkunft: ParcelRef[] | undefined = tpl.title.startsWith('Mutation')
+      ? Array.from({ length: 1 + (hr % 2) }, (_, k) => ({
+          nummer: String(Math.max(1, nummerNum - 1 - k - (hr % 7))),
+          egrid: `CH${String(hashStr(`${seed}-origin-${i}-${k}`) % 1000000000000).padStart(12, '0')}`,
+        }))
+      : undefined;
+    const baseDescription = tpl.describe(after, before);
     events.push({
       id: `${seed}-${i}`,
       date,
       title: tpl.title,
-      description: tpl.describe(after, before),
+      description: herkunft
+        ? `${baseDescription} · entstanden aus Nr. ${herkunft.map(p => p.nummer).join(' und ')}`
+        : baseDescription,
+      affects: meta.affects,
+      stelle: meta.stelle(after),
+      beleg: `${meta.prefix} ${date.slice(0, 4)}/${100 + (hr % 9000)}`,
+      herkunft,
     });
     states.push(before);
   });
@@ -253,3 +313,9 @@ export function yearsAgoIso(years: number): string {
 }
 
 export const MIN_STICHTAG = `${EARLIEST_YEAR - 5}-01-01`;
+
+/** Events that happened after `from` and up to (including) `to` (ISO dates). */
+export function eventsBetween(history: ParcelHistory, from: string, to: string): HistoryEvent[] {
+  const [lo, hi] = from <= to ? [from, to] : [to, from];
+  return history.events.filter(e => e.date > lo && e.date <= hi);
+}

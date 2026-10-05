@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { GeoJSON as GeoJSONLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
-import type { Feature, FeatureCollection } from 'geojson';
+import type { Feature, FeatureCollection, Geometry } from 'geojson';
 import type { RealParcelProps } from '../../wfsService';
 import type { ViewMode } from './viewMode';
 import { INFO_PANEL_DESKTOP_WIDTH } from './viewMode';
@@ -76,7 +76,7 @@ function autoCenterParcelOnDesktop(map: L.Map, latlng: L.LatLng, viewMode: ViewM
 //       means all other polygons stay rendered — only the highlight changes.
 
 interface ParcelLayerProps {
-  onFeatureSelect:  (props: RealParcelProps | null) => void;
+  onFeatureSelect:  (props: RealParcelProps | null, geometry?: Geometry) => void;
   onLoadingChange:  (loading: boolean) => void;
   onError:          (msg: string | null) => void;
   onZoomChange:     (zoom: number) => void;
@@ -191,7 +191,7 @@ function ParcelLayer({ onFeatureSelect, onLoadingChange, onError, onZoomChange, 
       }
 
       // Notify parent to show the info box.
-      cbRef.current.onFeatureSelect(feature.properties as RealParcelProps);
+      cbRef.current.onFeatureSelect(feature.properties as RealParcelProps, feature.geometry);
     });
   }, [map]);
 
