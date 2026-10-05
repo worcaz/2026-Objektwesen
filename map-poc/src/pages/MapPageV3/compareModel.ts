@@ -1,4 +1,4 @@
-import type { ObjectInfo, ContactInfo, BuildingInfo, ProjectInfo } from '../MapPageV2/mockData';
+import type { ObjectInfo, ContactInfo, BuildingInfo, ProjectInfo, ZonenplanEntry } from '../MapPageV2/mockData';
 
 // Turns N object states into comparable rows, grouped like the info panel
 // (Stammdaten, Grundstück, Gebäude, Bauprojekte, Zuständige Stellen).
@@ -14,8 +14,10 @@ export interface CmpRow {
   label: string;
   /** scalar: one value; list: items are diffed individually; sub: sub-heading row without cells */
   kind: 'scalar' | 'list' | 'sub';
-  /** Show the map-legend symbol in front of each line */
-  legend?: 'bodenbedeckung' | 'zonenplan';
+  /** sub-heading that groups further sub-headings (rendered with them) */
+  section?: boolean;
+  /** Map-legend symbol shown in front of the row label */
+  symbol?: { variant: 'bodenbedeckung' | 'zonenplan'; key: string };
   cells: Cell[];
 }
 
@@ -31,11 +33,8 @@ function scalar(id: string, label: string, infos: ObjectInfo[], get: (i: ObjectI
   return { id, label, kind: 'scalar', cells: infos.map(i => ({ lines: [dash(get(i))] })) };
 }
 
-function list(
-  id: string, label: string, infos: ObjectInfo[], get: (i: ObjectInfo) => string[],
-  legend?: CmpRow['legend'],
-): CmpRow {
-  return { id, label, kind: 'list', legend, cells: infos.map(i => ({ lines: get(i) })) };
+function list(id: string, label: string, infos: ObjectInfo[], get: (i: ObjectInfo) => string[]): CmpRow {
+  return { id, label, kind: 'list', cells: infos.map(i => ({ lines: get(i) })) };
 }
 
 function ownerLines(i: ObjectInfo): string[] {
@@ -69,6 +68,7 @@ function entityRows<T>(
   key: (t: T) => string,
   heading: (t: T) => string,
   attrs: { label: string; get: (t: T) => string }[],
+  symbol?: (t: T) => CmpRow['symbol'],
 ): CmpRow[] {
   const keys: string[] = [];
   const firstSeen = new Map<string, T>();
@@ -80,7 +80,7 @@ function entityRows<T>(
   }
   const rows: CmpRow[] = [];
   for (const k of keys) {
-    rows.push({ id: `${prefix}-${k}-h`, label: heading(firstSeen.get(k)!), kind: 'sub', cells: [] });
+    rows.push({ id: `${prefix}-${k}-h`, label: heading(firstSeen.get(k)!), kind: 'sub', symbol: symbol?.(firstSeen.get(k)!), cells: [] });
     attrs.forEach((a, idx) => {
       rows.push({
         id: `${prefix}-${k}-${idx}`,
@@ -104,11 +104,38 @@ export function buildGroups(infos: ObjectInfo[]): CmpGroup[] {
     scalar('gb', 'Grundbuch (GB-Nr.)', infos, i => i.grundbuchNr),
     scalar('art', 'Grundstückart', infos, i => i.grundstueckArt),
     scalar('flur', 'Flurnamen', infos, i => i.flurname),
-    list('boden', 'Bodenbedeckung', infos, i => i.bodenbedeckung.map(b => `${b.label} (${b.area})`), 'bodenbedeckung'),
     scalar('flaeche', 'Fläche (grundbuchlich)', infos, i => i.flaecheGrundbuch),
-    list('zone', 'Grundnutzung Zonenplan', infos, i =>
-      i.grundnutzungZonenplan.map(z => `${z.zonentyp} – ${z.gemeinde} (${z.flaeche}, ${z.anteil})`), 'zonenplan'),
   ];
+
+  // Bodenbedeckung: one row per type, value = area.
+  const bodenbedeckung: CmpRow[] = [];
+  {
+    const labels: string[] = [];
+    for (const i of infos) for (const b of i.bodenbedeckung) if (!labels.includes(b.label)) labels.push(b.label);
+    for (const label of labels) {
+      bodenbedeckung.push({
+        id: `boden-${label}`,
+        label,
+        kind: 'scalar',
+        symbol: { variant: 'bodenbedeckung', key: label },
+        cells: infos.map(i => {
+          const e = i.bodenbedeckung.find(b => b.label === label);
+          return e ? { lines: [e.area] } : { lines: [], absent: true };
+        }),
+      });
+    }
+  }
+
+  // Grundnutzung Zonenplan: per zone Fläche + Anteil.
+  const zonenplan = entityRows<ZonenplanEntry>(
+    'zone', infos, i => i.grundnutzungZonenplan, z => `${z.zonentyp}|${z.gemeinde}`,
+    z => `${z.zonentyp} – ${z.gemeinde}`,
+    [
+      { label: 'Fläche', get: z => z.flaeche },
+      { label: 'Anteil', get: z => z.anteil },
+    ],
+    z => ({ variant: 'zonenplan', key: `${z.zonentyp} ${z.gemeinde}` }),
+  );
 
   const grundstueck: CmpRow[] = [
     list('owner', 'Eigentümer', infos, ownerLines),
@@ -161,7 +188,16 @@ export function buildGroups(infos: ObjectInfo[]): CmpGroup[] {
   ];
 
   return [
-    { id: 'stamm',  title: 'Stammdaten',         rows: stammdaten },
+    {
+      id: 'stamm', title: 'Stammdaten',
+      rows: [
+        ...stammdaten,
+        { id: 'boden-h', label: 'Bodenbedeckung', kind: 'sub', section: true, cells: [] },
+        ...bodenbedeckung,
+        { id: 'zone-hh', label: 'Grundnutzung Zonenplan', kind: 'sub', section: true, cells: [] },
+        ...zonenplan,
+      ],
+    },
     { id: 'gs',     title: 'Grundstück',         rows: grundstueck },
     { id: 'geb',    title: 'Gebäude',            rows: gebaeude },
     { id: 'bp',     title: 'Bauprojekte',        rows: bauprojekte },
