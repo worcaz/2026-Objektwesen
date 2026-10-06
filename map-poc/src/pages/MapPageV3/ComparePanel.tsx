@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   LuCalendarPlus, LuX, LuHistory, LuChevronDown, LuChevronRight, LuSearch,
-  LuLink, LuCheck, LuFileSpreadsheet, LuPrinter, LuGitBranch, LuPlus, LuListFilter, LuChevronUp, LuGitCompare,
+  LuLink, LuCheck, LuFileSpreadsheet, LuPrinter, LuGitBranch, LuPlus, LuListFilter, LuChevronUp, LuGitCompare, LuShare2,
 } from 'react-icons/lu';
 import type { ReactNode } from 'react';
 import type { ObjectInfo } from '../MapPageV2/mockData';
@@ -143,6 +143,8 @@ export default function ComparePanel(p: ComparePanelProps) {
   const [hl, setHl] = useState<Set<string>>(new Set());
   const [copied, setCopied] = useState(false);
   const narrow = useMedia('(max-width: 640px)');
+  // Einzelansicht: Zeitstrahl erst auf Wunsch («Zeitreise»), damit der Kopf ruhig bleibt.
+  const [timeOpen, setTimeOpen] = useState(false);
   const [controlsOpen, setControlsOpen] = useState(() => !(typeof window !== 'undefined' && window.matchMedia?.('(max-width: 640px)').matches));
   const [pairIdx, setPairIdx] = useState(1);
   const eventRefs = useRef<Record<string, HTMLLIElement | null>>({});
@@ -299,6 +301,31 @@ export default function ComparePanel(p: ComparePanelProps) {
   const sinceStand = eventsBetween(history, stand, TODAY_ISO).length;
   const oldestYear = history.events.length ? history.events[history.events.length - 1].date.slice(0, 4) : null;
 
+  const searchBox = (
+    <div className="cmp-search">
+      <LuSearch size={14} />
+      <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Felder und Werte suchen…" aria-label="Tabelle durchsuchen" />
+      {search && <button type="button" aria-label="Suche leeren" onClick={() => setSearch('')}><LuX size={13} /></button>}
+    </div>
+  );
+  const shareMenu = (
+    <Popover label={copied ? 'Link kopiert' : 'Teilen'} icon={copied ? <LuCheck size={14} /> : <LuShare2 size={14} />} align="right">
+      {close => (
+        <div className="cmp-startmenu cmp-sharemenu">
+          <button type="button" onClick={() => { close(); copyLink(); }}>
+            <LuLink size={15} /> <span><b>Link kopieren</b><small>Diese Ansicht mit allen Einstellungen teilen</small></span>
+          </button>
+          <button type="button" onClick={() => { close(); exportCsv(exportData(), `vergleich-${primary.grundstueckNummer}.csv`); }}>
+            <LuFileSpreadsheet size={15} /> <span><b>Excel</b><small>Tabelle als CSV herunterladen</small></span>
+          </button>
+          <button type="button" onClick={() => { close(); if (!exportPdf(exportData())) window.alert('Bitte Pop-ups für diese Seite erlauben.'); }}>
+            <LuPrinter size={15} /> <span><b>PDF / Drucken</b><small>Druckansicht öffnen</small></span>
+          </button>
+        </div>
+      )}
+    </Popover>
+  );
+
   return (
     <div className="cmp">
       <div className="cmp-controls">
@@ -308,7 +335,7 @@ export default function ComparePanel(p: ComparePanelProps) {
             <Popover label="Vergleichen" icon={<LuGitCompare size={14} />} primary>
               {close => (
                 <div className="cmp-startmenu">
-                  <button type="button" onClick={() => { close(); p.onStartCompare('zeit'); }}>
+                  <button type="button" onClick={() => { close(); p.onStartCompare('zeit', stand === TODAY_ISO ? undefined : stand); }}>
                     <LuHistory size={15} /> <span><b>Mit früherem Stand</b><small>Heutigen Stand mit einem früheren Stichtag vergleichen</small></span>
                   </button>
                   <button type="button" onClick={() => { close(); p.onStartCompare('parzellen'); }}>
@@ -332,20 +359,32 @@ export default function ComparePanel(p: ComparePanelProps) {
               </button>
             </>
           )}
-          <span className="cmp-modes__spacer" />
-          <button type="button" className="cmp-tool" onClick={copyLink} title="Link zu diesem Vergleich kopieren">
-            {copied ? <LuCheck size={14} /> : <LuLink size={14} />} <span className="cmp-tool__txt">{copied ? 'Kopiert' : 'Link'}</span>
-          </button>
-          <button type="button" className="cmp-tool" onClick={() => exportCsv(exportData(), `vergleich-${primary.grundstueckNummer}.csv`)} title="Als Excel-Tabelle (CSV) exportieren">
-            <LuFileSpreadsheet size={14} /> <span className="cmp-tool__txt">Excel</span>
-          </button>
-          <button type="button" className="cmp-tool" onClick={() => { if (!exportPdf(exportData())) window.alert('Bitte Pop-ups für diese Seite erlauben.'); }} title="Als PDF drucken / speichern">
-            <LuPrinter size={14} /> <span className="cmp-tool__txt">PDF</span>
-          </button>
+          {compare ? <span className="cmp-modes__spacer" /> : searchBox}
+          {shareMenu}
         </div>
 
+        {!compare && (
+          <div className="cmp-summary cmp-summary--teaser" role="status">
+            <span>
+              {stand === TODAY_ISO
+                ? <>Aktueller Stand{history.events.length > 0 ? ` · seit ${oldestYear} ${history.events.length} Änderungen erfasst` : ' · keine früheren Änderungen erfasst'}</>
+                : <>Stand vom {formatDate(stand)} · seither {sinceStand} {sinceStand === 1 ? 'Änderung' : 'Änderungen'}</>}
+            </span>
+            <span className="cmp-teaser__actions">
+              {stand !== TODAY_ISO && (
+                <button type="button" className="cmp-linkbtn" onClick={() => p.onStandChange(TODAY_ISO)}>Zurück zu heute</button>
+              )}
+              {history.events.length > 0 && (
+                <button type="button" className="cmp-linkbtn cmp-linkbtn--plain" aria-expanded={timeOpen} onClick={() => setTimeOpen(o => !o)}>
+                  <LuHistory size={13} /> Zeitreise <LuChevronDown size={13} className={timeOpen ? 'cmp-flip' : ''} />
+                </button>
+              )}
+            </span>
+          </div>
+        )}
+
         {/* Zeile 2: Stichtage (Zeitstrahl) bzw. Grundstücke */}
-        {controlsOpen && (!compare || mode === 'zeit') && (
+        {(compare ? controlsOpen && mode === 'zeit' : timeOpen) && (
           <div className="cmp-time">
             <Timeline
               events={history.events}
@@ -419,57 +458,40 @@ export default function ComparePanel(p: ComparePanelProps) {
           </div>
         )}
 
-        {/* Zeile 3: Suche, Filter */}
-        <div className="cmp-toolbar2">
-          <div className="cmp-search">
-            <LuSearch size={14} />
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Felder und Werte suchen…" aria-label="Tabelle durchsuchen" />
-            {search && <button type="button" aria-label="Suche leeren" onClick={() => setSearch('')}><LuX size={13} /></button>}
-          </div>
-          {compare && (
+        {/* Zeile 3 (nur Vergleich): Suche, Filter */}
+        {compare && (
+          <div className="cmp-toolbar2">
+            {searchBox}
             <label className="cmp-switch" title={cols.length < 2 ? 'Mindestens zwei Spalten nötig' : undefined}>
               <input type="checkbox" checked={onlyChangesPref} disabled={cols.length < 2} onChange={e => setOnlyChanges(e.target.checked)} />
               Nur Unterschiede
             </label>
-          )}
-          <Popover label={hiddenGroups.size ? `Bereiche (${groups.length - hiddenGroups.size}/${groups.length})` : 'Bereiche'} icon={<LuListFilter size={14} />} align="right">
-            {() => (
-              <div className="cmp-groupmenu">
-                {groups.map(g => (
-                  <label key={g.id} className="cmp-check">
-                    <input type="checkbox" checked={!hiddenGroups.has(g.id)} onChange={() => setHiddenGroups(prev => toggleIn(prev, g.id))} />
-                    {g.title}
-                  </label>
-                ))}
-              </div>
-            )}
-          </Popover>
-          <button type="button" className="cmp-tool" aria-expanded={controlsOpen} onClick={() => setControlsOpen(o => !o)}
-            title={controlsOpen ? 'Zeitstrahl ausblenden' : 'Zeitstrahl einblenden'}>
-            <LuChevronUp size={14} className={controlsOpen ? '' : 'cmp-flip'} /> {!compare ? 'Zeitstrahl' : mode === 'zeit' ? 'Stichtage' : 'Grundstücke'}
-          </button>
-        </div>
+            <Popover label={hiddenGroups.size ? `Bereiche (${groups.length - hiddenGroups.size}/${groups.length})` : 'Bereiche'} icon={<LuListFilter size={14} />} align="right">
+              {() => (
+                <div className="cmp-groupmenu">
+                  {groups.map(g => (
+                    <label key={g.id} className="cmp-check">
+                      <input type="checkbox" checked={!hiddenGroups.has(g.id)} onChange={() => setHiddenGroups(prev => toggleIn(prev, g.id))} />
+                      {g.title}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </Popover>
+            <button type="button" className="cmp-tool" aria-expanded={controlsOpen} onClick={() => setControlsOpen(o => !o)}
+              title={controlsOpen ? 'Ausblenden' : 'Einblenden'}>
+              <LuChevronUp size={14} className={controlsOpen ? '' : 'cmp-flip'} /> {mode === 'zeit' ? 'Stichtage' : 'Grundstücke'}
+            </button>
+          </div>
+        )}
 
-        {compare ? (
+        {compare && (
           <div className="cmp-summary" role="status">
             <span>{summary}</span>
             <span className="cmp-legend">
               <span className="cmp-item--added cmp-legend__sw">neu</span>
               <span className="cmp-item--removed cmp-legend__sw">entfallen</span>
             </span>
-          </div>
-        ) : (
-          <div className="cmp-summary cmp-summary--teaser" role="status">
-            <span>
-              {stand === TODAY_ISO
-                ? <>Aktueller Stand. {history.events.length > 0 ? `Seit ${oldestYear} sind ${history.events.length} Änderungen erfasst.` : 'Keine früheren Änderungen erfasst.'}</>
-                : <>Stand vom {formatDate(stand)} – seither {sinceStand} {sinceStand === 1 ? 'Änderung' : 'Änderungen'}.</>}
-            </span>
-            {history.events.length > 0 && (
-              <button type="button" className="cmp-linkbtn" onClick={() => p.onStartCompare('zeit', stand === TODAY_ISO ? undefined : stand)}>
-                {stand === TODAY_ISO ? 'Mit früherem Stand vergleichen' : 'Mit heute vergleichen'} →
-              </button>
-            )}
           </div>
         )}
       </div>

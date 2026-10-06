@@ -209,9 +209,13 @@ export default function MapPageV3() {
     parcels: parcels.map(refOf), mode, dates, baseDate, pDate, compare, stand, view: viewMode,
   }), [parcels, mode, dates, baseDate, pDate, compare, stand, viewMode]);
 
+  // Debounced: browsers throttle (Safari: throws on) frequent replaceState calls.
   useEffect(() => {
-    const qs = parcels.length ? `?${serializeState(shareState)}` : window.location.pathname;
-    window.history.replaceState(null, '', parcels.length ? `${window.location.pathname}${qs}` : qs);
+    const id = window.setTimeout(() => {
+      const qs = parcels.length ? `?${serializeState(shareState)}` : window.location.pathname;
+      window.history.replaceState(null, '', parcels.length ? `${window.location.pathname}${qs}` : qs);
+    }, 300);
+    return () => window.clearTimeout(id);
   }, [shareState, parcels.length]);
 
   const copyLink = async (): Promise<boolean> => {

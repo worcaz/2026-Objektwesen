@@ -1,4 +1,4 @@
-import { useMemo, useRef } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import type { HistoryEvent } from './historyData';
 import { TODAY_ISO, MIN_STICHTAG, formatDate } from './historyData';
 
@@ -25,6 +25,10 @@ export default function Timeline({ events, dates, baseDate, maxDates, lockToday 
   // Drag handlers outlive a render; always call the newest props.
   const latest = useRef({ dates, onMoveDate });
   latest.current = { dates, onMoveDate };
+  // While dragging, only this component re-renders (pin follows the pointer);
+  // the new date is committed to the page (table, map, URL) on release.
+  const [drag, setDrag] = useState<{ from: string; to: string } | null>(null);
+  const shown = (iso: string) => (drag && drag.from === iso ? drag.to : iso);
   // Stable React keys per pin, so a dragged pin keeps its DOM element (and pointer capture) while its date changes.
   const pinKeys = useRef(new Map<string, string>());
   const keyCounter = useRef(0);
@@ -65,20 +69,28 @@ export default function Timeline({ events, dates, baseDate, maxDates, lockToday 
     const el = e.currentTarget;
     el.setPointerCapture(e.pointerId);
     let current = iso;
+    let frame = 0;
+    setDrag({ from: iso, to: iso });
     const move = (ev: PointerEvent) => {
       const next = isoAtClientX(ev.clientX);
-      if (next !== current && !latest.current.dates.includes(next)) {
-        const k = pinKey(current);
-        pinKeys.current.delete(current);
-        pinKeys.current.set(next, k);
-        latest.current.onMoveDate(current, next);
-        current = next;
-      }
+      if (next === current || (next !== iso && latest.current.dates.includes(next))) return;
+      current = next;
+      // At most one update per frame.
+      if (!frame) frame = requestAnimationFrame(() => { frame = 0; setDrag({ from: iso, to: current }); });
     };
-    const end = () => {
+    const end = (ev: PointerEvent) => {
       el.removeEventListener('pointermove', move);
       el.removeEventListener('pointerup', end);
       el.removeEventListener('pointercancel', end);
+      if (frame) cancelAnimationFrame(frame);
+      setDrag(null);
+      if (ev.type === 'pointerup' && current !== iso && !latest.current.dates.includes(current)) {
+        // Keep the pin's DOM element (and focus) under its new date.
+        const k = pinKey(iso);
+        pinKeys.current.delete(iso);
+        pinKeys.current.set(current, k);
+        latest.current.onMoveDate(iso, current);
+      }
     };
     el.addEventListener('pointermove', move);
     el.addEventListener('pointerup', end);
@@ -126,14 +138,16 @@ export default function Timeline({ events, dates, baseDate, maxDates, lockToday 
           />
         ))}
 
-        {dates.map(d => (
+        {dates.map(d => {
+          const at = shown(d);
+          return (
           <div
             key={pinKey(d)}
-            className={`tl-pin${d === baseDate ? ' tl-pin--base' : ''}${lockToday && d === TODAY_ISO ? ' tl-pin--fixed' : ''}`}
-            style={{ left: `${pct(d)}%` }}
+            className={`tl-pin${d === baseDate ? ' tl-pin--base' : ''}${lockToday && d === TODAY_ISO ? ' tl-pin--fixed' : ''}${drag?.from === d ? ' tl-pin--dragging' : ''}`}
+            style={{ left: `${pct(at)}%` }}
           >
-            <span className="tl-pin__label" style={{ transform: `translateX(${pct(d) > 90 ? '-85%' : pct(d) < 10 ? '-15%' : '-50%'})` }}>
-              {d === TODAY_ISO ? 'Heute' : formatDate(d)}
+            <span className="tl-pin__label" style={{ transform: `translateX(${pct(at) > 90 ? '-85%' : pct(at) < 10 ? '-15%' : '-50%'})` }}>
+              {at === TODAY_ISO ? 'Heute' : formatDate(at)}
               {dates.length > 1 && (
                 <button type="button" className="tl-pin__x" aria-label={`Stichtag ${formatDate(d)} entfernen`}
                   onClick={() => onRemoveDate(d)}>×</button>
@@ -147,7 +161,8 @@ export default function Timeline({ events, dates, baseDate, maxDates, lockToday 
               aria-label={`Stichtag ${formatDate(d)}${lockToday && d === TODAY_ISO ? '' : ' – mit Pfeiltasten verschiebbar'}`}
             />
           </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );
