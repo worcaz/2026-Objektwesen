@@ -128,6 +128,14 @@
   line-height: 1.45;
 }
 
+/* Info-Button direkt hinter einem Feldlabel */
+.field-row__label .info-tooltip,
+.field-sublabel .info-tooltip,
+.cmp-rowlabel .info-tooltip {
+  margin-left: 4px;
+  vertical-align: -1px;
+}
+
 /* ── Section ─────────────────────────────────────────────── */
 
 .section-header {

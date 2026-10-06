@@ -75,6 +75,7 @@ export interface ObjectInfo {
   letzteAktualisierung: string;
   // Grundstück-Sektion
   katasterwert:      string;
+  belastungsgrenze:  string;
   dienstbarkeiten:   string[];
   anmerkungen:       string[];
   grundpfandrechte:  string[];
@@ -700,6 +701,10 @@ const DUMMY_KATASTERWERTE = [
   "CHF 850'000", "CHF 1'200'000", "CHF 430'000", "CHF 2'100'000", "CHF 680'000", "CHF 3'400'000",
 ];
 
+const DUMMY_BELASTUNGSGRENZEN = [
+  "CHF 595'000", "CHF 840'000", "CHF 301'000", "CHF 1'470'000", "CHF 476'000", "CHF 2'380'000",
+];
+
 const DUMMY_DIENSTBARKEITEN: string[][] = [
   ['Wegrecht zugunsten Parz. 412', 'Leitungsrecht EW Luzern'],
   ['Baurecht Nr. 1024 (BRB 2005)', 'Näherbaurecht'],
@@ -856,6 +861,7 @@ export function buildDummyInfo(seed: string, nummer?: string, egrid?: string): O
     grundbuchamtKontakt:   DUMMY_GRUNDBUCHAEMTER[h % DUMMY_GRUNDBUCHAEMTER.length],
     letzteAktualisierung: formatAktualisierung(),
     katasterwert:      DUMMY_KATASTERWERTE[h % DUMMY_KATASTERWERTE.length],
+    belastungsgrenze:  DUMMY_BELASTUNGSGRENZEN[h % DUMMY_BELASTUNGSGRENZEN.length],
     dienstbarkeiten:   DUMMY_DIENSTBARKEITEN[h % DUMMY_DIENSTBARKEITEN.length],
     anmerkungen:       DUMMY_ANMERKUNGEN[h % DUMMY_ANMERKUNGEN.length],
     grundpfandrechte:  DUMMY_GRUNDPFANDRECHTE[h % DUMMY_GRUNDPFANDRECHTE.length],

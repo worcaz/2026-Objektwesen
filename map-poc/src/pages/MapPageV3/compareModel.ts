@@ -18,6 +18,10 @@ export interface CmpRow {
   section?: boolean;
   /** Map-legend symbol shown in front of the row label */
   symbol?: { variant: 'bodenbedeckung' | 'zonenplan'; key: string };
+  /** sub-heading of a collapsible entity (e.g. one building): short summary + number of sibling entities */
+  entity?: { summary: string; count: number };
+  /** attribute row belonging to the entity sub-heading with this id */
+  parent?: string;
   cells: Cell[];
 }
 
@@ -69,6 +73,8 @@ function entityRows<T>(
   heading: (t: T) => string,
   attrs: { label: string; get: (t: T) => string }[],
   symbol?: (t: T) => CmpRow['symbol'],
+  /** makes each entity collapsible, with this summary shown in its heading */
+  summary?: (t: T) => string,
 ): CmpRow[] {
   const keys: string[] = [];
   const firstSeen = new Map<string, T>();
@@ -80,12 +86,18 @@ function entityRows<T>(
   }
   const rows: CmpRow[] = [];
   for (const k of keys) {
-    rows.push({ id: `${prefix}-${k}-h`, label: heading(firstSeen.get(k)!), kind: 'sub', symbol: symbol?.(firstSeen.get(k)!), cells: [] });
+    const first = firstSeen.get(k)!;
+    const headId = `${prefix}-${k}-h`;
+    rows.push({
+      id: headId, label: heading(first), kind: 'sub', symbol: symbol?.(first), cells: [],
+      entity: summary ? { summary: summary(first), count: keys.length } : undefined,
+    });
     attrs.forEach((a, idx) => {
       rows.push({
         id: `${prefix}-${k}-${idx}`,
         label: a.label,
         kind: 'scalar',
+        parent: summary ? headId : undefined,
         cells: infos.map(info => {
           const t = getAll(info).find(x => key(x) === k);
           return t ? { lines: [dash(a.get(t))] } : { lines: [], absent: true };
@@ -141,6 +153,7 @@ export function buildGroups(infos: ObjectInfo[]): CmpGroup[] {
     list('owner', 'Eigentümer', infos, ownerLines),
     scalar('form', 'Eigentumsform', infos, i => i.eigentuemer.eigentumsform),
     scalar('kat', 'Katasterwert', infos, i => i.katasterwert),
+    scalar('belast', 'Belastungsgrenze', infos, i => i.belastungsgrenze),
     list('dienst', 'Dienstbarkeiten / Grundlasten', infos, i => i.dienstbarkeiten),
     list('anm', 'Anmerkungen', infos, i => i.anmerkungen),
     list('pfand', 'Grundpfandrechte', infos, i => i.grundpfandrechte),
@@ -163,6 +176,8 @@ export function buildGroups(infos: ObjectInfo[]): CmpGroup[] {
       { label: 'Koordinaten',          get: g => g.koordinaten },
       { label: 'Verwaltung',           get: g => g.verwaltungGebaeude },
     ],
+    undefined,
+    g => [g.gebaeudekategorie, g.adresse].filter(Boolean).join(' · '),
   );
 
   const bauprojekte = entityRows<ProjectInfo>(
@@ -178,6 +193,8 @@ export function buildGroups(infos: ObjectInfo[]): CmpGroup[] {
       { label: 'Art der Bauwerke',          get: p => p.artDerBauwerke },
       { label: 'Typ der Bauwerke',          get: p => p.typDerBauwerke },
     ],
+    undefined,
+    p => [p.bezeichnung, p.status].filter(Boolean).join(' · '),
   );
 
   const stellen: CmpRow[] = [

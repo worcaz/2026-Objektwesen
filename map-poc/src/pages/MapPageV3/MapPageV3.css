@@ -146,6 +146,14 @@
 .cmp-group__badge { text-transform: none; letter-spacing: 0; font-weight: 600; font-size: 11px; background: #fef3c7; color: #92400e; border-radius: 999px; padding: 1px 8px; }
 .cmp-sub { padding: 6px 10px; text-align: left; background: #f9fafb; font-size: 12px; font-weight: 700; color: #374151; border-bottom: 1px solid #eef0f3; position: sticky; left: 0; }
 
+.cmp-entityrow:not(:first-child) .cmp-entity { border-top: 6px solid #fff; }
+.cmp-entity { background: #f3f4f6; border-bottom: 1px solid #e5e7eb; box-shadow: inset 3px 0 0 #9ca3af; }
+.cmp-entity--toggle { cursor: pointer; }
+.cmp-entity--toggle:hover { background: #e5e7eb; }
+.cmp-entity__inner { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; }
+.cmp-entity__title { font-weight: 700; color: #1f2937; }
+.cmp-entity__summary { font-weight: 500; color: #6b7280; }
+
 .cmp-legend-line { display: inline-flex; align-items: flex-start; gap: 6px; }
 
 /* ── Compare panel: modes, tools, filters ────────────────── */

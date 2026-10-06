@@ -6,6 +6,8 @@ import {
 import type { ReactNode } from 'react';
 import type { ObjectInfo } from '../MapPageV2/mockData';
 import { TinyLegendSymbol, getBodenbedeckungColor, getZoneColor } from '../MapPageV2/LegendSymbol';
+import InfoTooltip from '../MapPageV2/InfoTooltip';
+import { FIELD_INFO } from '../MapPageV2/fieldInfo';
 import type { CmpRow } from './compareModel';
 import { buildGroups, cellChanged, rowChanged } from './compareModel';
 import type { HistoryEvent, ParcelRef } from './historyData';
@@ -30,7 +32,10 @@ interface Col {
 }
 
 function RowLabel({ row }: { row: CmpRow }) {
-  if (!row.symbol) return <>{row.label}</>;
+  if (!row.symbol) {
+    const info = FIELD_INFO[row.label];
+    return <>{row.label}{info && <InfoTooltip text={info} />}</>;
+  }
   const fill = row.symbol.variant === 'bodenbedeckung' ? getBodenbedeckungColor(row.symbol.key) : getZoneColor(row.symbol.key);
   return (
     <span className="cmp-legend-line">
@@ -131,6 +136,8 @@ export default function ComparePanel(p: ComparePanelProps) {
   const [search, setSearch] = useState('');
   const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set());
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
+  // Gebäude / Bauprojekte: bei mehreren standardmässig zugeklappt, einzelne offen. Hier stehen die umgeschalteten.
+  const [toggledEntities, setToggledEntities] = useState<Set<string>>(new Set());
   const [typeFilter, setTypeFilter] = useState<Set<string>>(new Set());
   const [openEvents, setOpenEvents] = useState<Set<string>>(new Set());
   const [hl, setHl] = useState<Set<string>>(new Set());
@@ -213,6 +220,15 @@ export default function ComparePanel(p: ComparePanelProps) {
       return { ...g, rows, changes };
     })
     .filter(g => (!onlyChanges && !q) || g.rows.length > 0);
+
+  // Bei Suche oder «nur Änderungen» bleiben alle Einträge offen, damit Treffer sichtbar sind.
+  const filtering = Boolean(q) || onlyChanges;
+  const entityOpen = (r: CmpRow) => filtering || ((r.entity?.count ?? 1) <= 1) !== toggledEntities.has(r.id);
+  const entityChanges = new Map<string, number>();
+  for (const g of groups) for (const r of g.rows) {
+    if (r.parent && rowChanged(r, baseIdx, shownIdx)) entityChanges.set(r.parent, (entityChanges.get(r.parent) ?? 0) + 1);
+  }
+  const openParents = new Set(visibleGroups.flatMap(g => g.rows.filter(r => r.entity && entityOpen(r)).map(r => r.id)));
 
   // ── Zusammenfassung ──
   const totalChanged = groups.reduce((n, g) => n + g.rows.filter(r => rowChanged(r, baseIdx, shownIdx)).length, 0);
@@ -509,8 +525,22 @@ export default function ComparePanel(p: ComparePanelProps) {
                     </span>
                   </th>
                 </tr>,
-                ...(isCollapsed ? [] : g.rows.map(row =>
-                  row.kind === 'sub' ? (
+                ...(isCollapsed ? [] : g.rows.filter(row => !row.parent || openParents.has(row.parent)).map(row =>
+                  row.entity ? (
+                    <tr key={row.id} className="cmp-subrow cmp-entityrow" onClick={() => !filtering && setToggledEntities(prev => toggleIn(prev, row.id))}>
+                      <th colSpan={shownIdx.length + 1} scope="colgroup" className={`cmp-sub cmp-entity${filtering ? '' : ' cmp-entity--toggle'}`}
+                        aria-expanded={entityOpen(row)}>
+                        <span className="cmp-entity__inner">
+                          {!filtering && (entityOpen(row) ? <LuChevronDown size={14} /> : <LuChevronRight size={14} />)}
+                          <span className="cmp-entity__title">{row.label}</span>
+                          {row.entity.summary && <span className="cmp-entity__summary">{row.entity.summary}</span>}
+                          {(entityChanges.get(row.id) ?? 0) > 0 && (
+                            <span className="cmp-group__badge">{entityChanges.get(row.id)} {entityChanges.get(row.id) === 1 ? 'Änderung' : 'Änderungen'}</span>
+                          )}
+                        </span>
+                      </th>
+                    </tr>
+                  ) : row.kind === 'sub' ? (
                     <tr key={row.id} className="cmp-subrow">
                       <th colSpan={shownIdx.length + 1} scope="colgroup" className="cmp-sub"><RowLabel row={row} /></th>
                     </tr>

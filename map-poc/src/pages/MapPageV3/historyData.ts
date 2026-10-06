@@ -113,8 +113,9 @@ const TEMPLATES: EventTemplate[] = [
   },
   {
     title: 'Neuschätzung Katasterwert',
-    describe: (cur, prev) => `Katasterwert ${prev.katasterwert} → ${cur.katasterwert}`,
-    revert: (a, alt) => ({ ...a, katasterwert: alt.katasterwert }),
+    describe: (cur, prev) =>
+      `Katasterwert ${prev.katasterwert} → ${cur.katasterwert}, Belastungsgrenze ${prev.belastungsgrenze} → ${cur.belastungsgrenze}`,
+    revert: (a, alt) => ({ ...a, katasterwert: alt.katasterwert, belastungsgrenze: alt.belastungsgrenze }),
     applicable: (a, alt) => a.katasterwert !== alt.katasterwert,
   },
   {
@@ -213,7 +214,7 @@ const EVENT_META: Record<string, EventMeta> = {
   'Neubau Gebäude':                     { affects: ['geb'], prefix: 'Baubewilligung', stelle: i => `Gemeinde ${i.gemeinde}` },
   'Mutation (Teilung / Zusammenlegung)': { affects: ['flaeche'], prefix: 'Mutations-Nr.', stelle: i => i.nachfuehrungsgeometer.office },
   'Revision Nutzungsplanung':           { affects: ['zone', 'boden'], prefix: 'RRB-Nr.', stelle: i => `Gemeinde ${i.gemeinde} / Regierungsrat` },
-  'Neuschätzung Katasterwert':          { affects: ['kat'], prefix: 'Schätzungs-Nr.', stelle: () => 'Dienststelle Steuern' },
+  'Neuschätzung Katasterwert':          { affects: ['kat', 'belast'], prefix: 'Schätzungs-Nr.', stelle: () => 'Dienststelle Steuern' },
   'Grundpfandrecht errichtet':          { affects: ['pfand'], prefix: 'Tagebuch-Nr.', stelle: i => i.grundbuchamtKontakt.office },
   'Dienstbarkeit begründet':            { affects: ['dienst'], prefix: 'Tagebuch-Nr.', stelle: i => i.grundbuchamtKontakt.office },
   'Umbau / Neubewertung Gebäude':       { affects: ['geb'], prefix: 'Schätzung GVL-Nr.', stelle: () => 'Gebäudeversicherung Luzern (GVL)' },

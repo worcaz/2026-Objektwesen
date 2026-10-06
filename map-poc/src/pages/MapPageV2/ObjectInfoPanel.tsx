@@ -1,12 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
-import { LuDownload, LuFileText, LuGlobe, LuHouse, LuInfo, LuLayers3, LuLock, LuMail, LuPhone, LuSearch, LuX } from 'react-icons/lu';
+import { LuDownload, LuFileText, LuGlobe, LuHouse, LuLayers3, LuLock, LuMail, LuPhone, LuSearch, LuX } from 'react-icons/lu';
 import { PiCrane } from 'react-icons/pi';
 import {
   AUTH_EVENT_NAME, AUTH_OPEN_LOGIN_EVENT, AUTH_STORAGE_KEY,
   USER_ROLE_STORAGE_KEY, USER_ROLE_EVENT_NAME,
   QUOTA_STORAGE_KEY, QUOTA_RESET_EVENT, QUOTA_SET_EVENT, QUOTA_MAX,
 } from '../../components/Header';
+import InfoTooltip from './InfoTooltip';
+import { FIELD_INFO } from './fieldInfo';
 import type { UserRole } from '../../components/Header';
 import type {
   ObjectInfo,
@@ -64,39 +66,6 @@ function SectionIcon({ title }: { title: string }) {
   );
 }
 
-function InfoTooltip({ text }: { text: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const [coords, setCoords] = useState<{ x: number; y: number } | null>(null);
-
-  const show = () => {
-    if (ref.current) {
-      const r = ref.current.getBoundingClientRect();
-      setCoords({ x: r.right + 8, y: r.top + r.height / 2 });
-    }
-  };
-  const hide = () => setCoords(null);
-
-  return (
-    <span
-      ref={ref}
-      className="info-tooltip"
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onClick={() => coords ? hide() : show()}
-    >
-      <LuInfo size={12} color="#9ca3af" style={{ cursor: 'default' }} />
-      {coords && (
-        <span
-          className="info-tooltip__popup"
-          style={{ left: coords.x, top: coords.y }}
-        >
-          {text}
-        </span>
-      )}
-    </span>
-  );
-}
-
 function Section({
   title,
   children,
@@ -143,10 +112,10 @@ function Section({
   );
 }
 
-function FieldRow({ label, value, mono = false }: { label: string; value: ReactNode; mono?: boolean }) {
+function FieldRow({ label, value, mono = false, info }: { label: string; value: ReactNode; mono?: boolean; info?: string }) {
   return (
     <div className="field-row">
-      <span className="field-row__label">{label}</span>
+      <span className="field-row__label">{label}{info && <InfoTooltip text={info} />}</span>
       <div className={`field-row__value${mono ? ' field-row__value--mono' : ''}`}>
         {value}
       </div>
@@ -166,14 +135,17 @@ function ProtectedFieldRow({
   label,
   value,
   isAuthenticated,
+  info,
 }: {
   label: string;
   value: ReactNode;
   isAuthenticated: boolean;
+  info?: string;
 }) {
   return (
     <FieldRow
       label={label}
+      info={info}
       value={isAuthenticated ? value : (
         <span className="protected-field-locked">
           <InlineMetaIcon><LuLock size={12} color="#111" /></InlineMetaIcon>
@@ -445,7 +417,7 @@ function CollapsibleGebaeude({ entries, isAuthenticated }: { entries: BuildingIn
                     <div className="field-subvalue" style={{ fontVariantNumeric: 'tabular-nums' }}>{g.koordinaten || '—'}</div>
                   </div>
                   <div>
-                    <div className="field-sublabel">EGID</div>
+                    <div className="field-sublabel">EGID<InfoTooltip text={FIELD_INFO['EGID']} /></div>
                     <div className="field-subvalue" style={{ fontVariantNumeric: 'tabular-nums' }}>{g.egid}</div>
                   </div>
                   <div>
@@ -453,7 +425,7 @@ function CollapsibleGebaeude({ entries, isAuthenticated }: { entries: BuildingIn
                     <div>{renderProtectedValue(g.verwaltungGebaeude)}</div>
                   </div>
                   <div>
-                    <div className="field-sublabel">Versicherungswert</div>
+                    <div className="field-sublabel">Versicherungswert<InfoTooltip text={FIELD_INFO['Versicherungswert']} /></div>
                     <div>{renderProtectedValue(g.versicherungswert)}</div>
                   </div>
                   <div>
@@ -697,10 +669,11 @@ function ObjectInfoPanel({ info, onClose }: { info: ObjectInfo; onClose: () => v
           {(!isAuthenticated || !isBuerger || isRevealed) && (
             <>
               <ProtectedFieldRow label="Eigentümer"                    value={<OwnershipValue info={info.eigentuemer} />} isAuthenticated={isAuthenticated} />
-              <ProtectedFieldRow label="Katasterwert"                  value={info.katasterwert} isAuthenticated={isAuthenticated} />
+              <ProtectedFieldRow label="Katasterwert"                  value={info.katasterwert} isAuthenticated={isAuthenticated} info={FIELD_INFO['Katasterwert']} />
+              <ProtectedFieldRow label="Belastungsgrenze"              value={info.belastungsgrenze} isAuthenticated={isAuthenticated} info={FIELD_INFO['Belastungsgrenze']} />
               <ProtectedFieldRow label="Dienstbarkeiten / Grundlasten" value={info.dienstbarkeiten.length ? info.dienstbarkeiten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
               <ProtectedFieldRow label="Anmerkungen"                   value={info.anmerkungen.length ? info.anmerkungen.join(', ') : '—'} isAuthenticated={isAuthenticated} />
-              <ProtectedFieldRow label="Grundpfandrechte"              value={info.grundpfandrechte.length ? info.grundpfandrechte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
+              <ProtectedFieldRow label="Grundpfandrechte"              value={info.grundpfandrechte.length ? info.grundpfandrechte.join(', ') : '—'} isAuthenticated={isAuthenticated} info={FIELD_INFO['Grundpfandrechte']} />
               <ProtectedFieldRow label="Erwerbsarten"                  value={info.erwerbsarten.length ? info.erwerbsarten.join(', ') : '—'} isAuthenticated={isAuthenticated} />
               <ProtectedFieldRow label="Offene Geschäfte"              value={info.offeneGeschaefte.length ? info.offeneGeschaefte.join(', ') : '—'} isAuthenticated={isAuthenticated} />
             </>

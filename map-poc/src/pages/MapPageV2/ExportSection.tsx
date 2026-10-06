@@ -138,6 +138,7 @@ function handleDummyPdfExport(info: ObjectInfo, isAuthenticated: boolean) {
         <div class="grid">
           ${renderOwnershipBlock('Eigentümer', info.eigentuemer)}
           <div class="block"><h3>Katasterwert</h3><p>${renderProtectedValue(info.katasterwert)}</p></div>
+          <div class="block"><h3>Belastungsgrenze</h3><p>${renderProtectedValue(info.belastungsgrenze)}</p></div>
         </div>
         ${renderProtectedList('Dienstbarkeiten / Grundlasten', info.dienstbarkeiten)}
         ${renderProtectedList('Anmerkungen', info.anmerkungen)}
@@ -211,6 +212,7 @@ function handleDummyCsvExport(info: ObjectInfo, isAuthenticated: boolean) {
     ['Fläche', info.flaecheGrundbuch],
     ['Eigentümer', ownershipToText(info.eigentuemer, isAuthenticated)],
     ['Katasterwert', protectedValue(info.katasterwert, isAuthenticated)],
+    ['Belastungsgrenze', protectedValue(info.belastungsgrenze, isAuthenticated)],
     ['Dienstbarkeiten / Grundlasten', protectedList(info.dienstbarkeiten, isAuthenticated)],
     ['Anmerkungen', protectedList(info.anmerkungen, isAuthenticated)],
     ['Grundpfandrechte', protectedList(info.grundpfandrechte, isAuthenticated)],
