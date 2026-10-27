@@ -1,16 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { GeoJSON, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
+import { SWISSIMAGE_ATTRIBUTION, SWISSIMAGE_FIRST_YEAR, swissimageUrl } from '../../lib/swissimage';
 import type { Geometry, Polygon, MultiPolygon, Position } from 'geojson';
 
-// ─── Historic aerial imagery (swisstopo WMTS) ────────────────────────────────
-// NOTE: URL pattern/time values follow swisstopo's WMTS scheme but are not verified against
-// the live service from the development sandbox — adjust here if the service differs.
-const AERIAL_BASE = 'https://wmts.geo.admin.ch/1.0.0/ch.swisstopo.swissimage-product/default';
-const AERIAL_ATTRIBUTION = '&copy; <a href="https://www.swisstopo.admin.ch">swisstopo</a> – SWISSIMAGE';
-export const AERIAL_FIRST_YEAR = 2017;
+// ─── Historic aerial imagery (swisstopo WMTS, see lib/swissimage) ────────────
+const AERIAL_ATTRIBUTION = SWISSIMAGE_ATTRIBUTION;
+export const AERIAL_FIRST_YEAR = SWISSIMAGE_FIRST_YEAR;
 
-export const aerialUrl = (year: number | 'current') => `${AERIAL_BASE}/${year}/3857/{z}/{x}/{y}.jpeg`;
+export const aerialUrl = swissimageUrl;
 
 /** Aerial year used for a Stichtag (clamped to the available range). */
 export function aerialYearFor(iso: string): { year: number; clamped: boolean } {

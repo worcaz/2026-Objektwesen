@@ -1,3 +1,4 @@
+import { SWISSIMAGE_ATTRIBUTION, SWISSIMAGE_MAX_ZOOM, swissimageUrl } from '../../lib/swissimage';
 import { useState, useEffect } from 'react';
 import { TbLoaderQuarter } from 'react-icons/tb';
 import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
@@ -109,6 +110,7 @@ export default function MapPageV2() {
   const [isLayerSelectorOpen, setIsLayerSelectorOpen] = useState(false);
   const [showAmtlicheVermessung, setShowAmtlicheVermessung] = useState(true);
   const [showLuftbild, setShowLuftbild] = useState(false);
+  const [luftbildYear, setLuftbildYear] = useState<number | 'current'>('current');
   const [showWaldgrenzen, setShowWaldgrenzen] = useState(false);
   const [showNutzungsplanung, setShowNutzungsplanung] = useState(false);
   const [showGefahrenkarte, setShowGefahrenkarte] = useState(false);
@@ -180,7 +182,7 @@ export default function MapPageV2() {
           />
         )}
 
-        {showLuftbild && (
+        {showLuftbild && luftbildYear === 'current' && (
           <WMSTileLayer
             url={LUFTBILD_WMS_URL}
             layers={LUFTBILD_LAYERS}
@@ -189,6 +191,15 @@ export default function MapPageV2() {
             version="1.3.0"
             opacity={luftbildOpacity}
             attribution={LUFTBILD_ATTRIBUTION}
+          />
+        )}
+        {showLuftbild && luftbildYear !== 'current' && (
+          <TileLayer
+            key={luftbildYear}
+            url={swissimageUrl(luftbildYear)}
+            attribution={SWISSIMAGE_ATTRIBUTION}
+            opacity={luftbildOpacity}
+            maxZoom={SWISSIMAGE_MAX_ZOOM}
           />
         )}
 
@@ -241,6 +252,8 @@ export default function MapPageV2() {
           onToggleLuftbild={setShowLuftbild}
           luftbildOpacity={luftbildOpacity}
           onChangeLuftbildOpacity={setLuftbildOpacity}
+          luftbildYear={luftbildYear}
+          onChangeLuftbildYear={setLuftbildYear}
           showWaldgrenzen={showWaldgrenzen}
           onToggleWaldgrenzen={setShowWaldgrenzen}
           waldgrenzenOpacity={waldgrenzenOpacity}

@@ -1,4 +1,5 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
+import { swissimageYears } from '../../lib/swissimage';
 import { useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { LuMinus, LuPlus, LuX } from 'react-icons/lu';
@@ -36,6 +37,8 @@ function MapLayerSelectorControl({
   onToggleLuftbild,
   luftbildOpacity,
   onChangeLuftbildOpacity,
+  luftbildYear,
+  onChangeLuftbildYear,
   showWaldgrenzen,
   onToggleWaldgrenzen,
   waldgrenzenOpacity,
@@ -59,6 +62,8 @@ function MapLayerSelectorControl({
   onToggleLuftbild: (next: boolean) => void;
   luftbildOpacity: number;
   onChangeLuftbildOpacity: (next: number) => void;
+  luftbildYear: number | 'current';
+  onChangeLuftbildYear: (next: number | 'current') => void;
   showWaldgrenzen: boolean;
   onToggleWaldgrenzen: (next: boolean) => void;
   waldgrenzenOpacity: number;
@@ -121,6 +126,7 @@ function MapLayerSelectorControl({
     onToggle: (next: boolean) => void,
     opacity: number,
     onOpacityChange: (next: number) => void,
+    extra?: ReactNode,
   ) => (
     <div className="layer-row">
       <label className="layer-row__label">
@@ -136,6 +142,8 @@ function MapLayerSelectorControl({
           <span className={`toggle-thumb${checked ? ' toggle-thumb--on' : ''}`} />
         </span>
       </label>
+
+      {extra}
 
       <div className="layer-opacity-control" style={{ opacity: checked ? 1 : 0.45 }}>
         <div className="layer-opacity-header">
@@ -175,6 +183,22 @@ function MapLayerSelectorControl({
             onToggleLuftbild,
             luftbildOpacity,
             onChangeLuftbildOpacity,
+            <div className="layer-opacity-control" style={{ opacity: showLuftbild ? 1 : 0.45 }}>
+              <div className="layer-opacity-header">
+                <span>Stand (swisstopo)</span>
+              </div>
+              <select
+                className="layer-year-select"
+                value={luftbildYear}
+                disabled={!showLuftbild}
+                onChange={(event) => onChangeLuftbildYear(event.target.value === 'current' ? 'current' : Number(event.target.value))}
+              >
+                <option value="current">Aktuell (AG / ZG / ZH / LU)</option>
+                {swissimageYears().map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
+            </div>,
           )}
           {renderLayerRow(
             'Statische Waldgrenzen',
