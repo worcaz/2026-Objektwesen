@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { LuFileText, LuHistory, LuLayers3 } from 'react-icons/lu';
+import { LuHistory, LuLayers3 } from 'react-icons/lu';
 import { Link } from 'react-router-dom';
 import Header from '../components/Header';
 
@@ -13,23 +13,16 @@ interface MockupEntry {
 
 const MOCKUPS: MockupEntry[] = [
   {
-    path: '/map',
-    title: 'First Draft v0.1',
-    description: 'Grundlagender Mockup mit Leaflet-Karte, Klick-Interaktion und Popup. Noch ohne WMS/WFS.',
-        icon: <LuFileText size={28} strokeWidth={1.9} />,
-    status: 'wip',
-  },
-  {
     path: '/mapv2',
-    title: 'Objektwesen v0.2 Mockup',
+    title: 'Objektwesen (Variante 1)',
     description:
       'Interaktive UX-Mockup mit Leaflet, inklusive Karteninteraktion, Seitenpanel und responsivem Layout.',
 icon: <LuLayers3 size={28} strokeWidth={1.9} />,
-    status: 'ready',
+    status: 'wip',
   },
   {
     path: '/mapv3',
-    title: 'Objektwesen v0.3 Mockup',
+    title: 'Objektwesen mit Historisierung (Variante 2)',
     description:
       'Historischer Vergleich: heutigen Stand mit früheren Ständen eines Grundstücks vergleichen und beliebige Stichtage wählen.',
     icon: <LuHistory size={28} strokeWidth={1.9} />,

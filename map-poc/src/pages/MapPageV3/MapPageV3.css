@@ -11,7 +11,7 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: clamp(460px, 58vw, 960px) 1fr;
+  grid-template-columns: min(var(--data-panel-w, 600px), 80vw) minmax(0, 1fr);
 }
 
 .mapv3-panel {
@@ -122,10 +122,20 @@
 .cmp-note { margin-top: 10px; }
 
 /* ── View modes (shared switcher with v2) ────────────────── */
-/* hybrid = default grid above; map = map-centered; data = data-centered */
+/* Panel width comes from --data-panel-w (user-resizable, remembered per mode: Karte, Hybrid); Daten = 100 %, no map. */
 
-.mapv3-page--map .mapv3-body { grid-template-columns: clamp(340px, 30vw, 440px) 1fr; }
-.mapv3-page--data .mapv3-body { grid-template-columns: min(var(--data-panel-w, 760px), 80vw) minmax(0, 1fr); }
+.mapv3-page--data .mapv3-body { grid-template-columns: minmax(0, 1fr); }
+.mapv3-page--data .mapv3-mapwrap { display: none; }
+.mapv3-page--panel-hidden .mapv3-body { grid-template-columns: minmax(0, 1fr); }
+.mapv3-page--panel-hidden .mapv3-panel { display: none; }
+.mapv3-paneltab {
+  position: absolute; top: 12px; left: 12px; z-index: 1100;
+  display: inline-flex; align-items: center; gap: 7px; height: 35px; padding: 0 10px;
+  border: 1px solid #e5e7eb; border-radius: 0; background: #fff; color: #111;
+  font-size: 13px; font-weight: 600; cursor: pointer; box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+}
+.mapv3-paneltab:hover { background: #f3f6f9; }
+.mapv3-paneltab:focus-visible { outline: 2px solid #009fe3; outline-offset: 1px; }
 .mapv3-page--resizing { user-select: none; cursor: col-resize; }
 
 /* ── Responsive: stack map above the panel ───────────────── */

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { MapContainer, TileLayer, WMSTileLayer, useMap } from 'react-leaflet';
 import type { Geometry } from 'geojson';
-import { LuSearch, LuX, LuHistory, LuLayers, LuChevronUp, LuMap, LuListTree } from 'react-icons/lu';
+import { LuSearch, LuX, LuHistory, LuLayers, LuChevronUp, LuMap, LuListTree, LuPanelLeftOpen, LuPanelLeftClose } from 'react-icons/lu';
 import { TbLoaderQuarter } from 'react-icons/tb';
 import 'leaflet/dist/leaflet.css';
 import '../MapPageV2/MapPageV2.css';
@@ -17,7 +17,6 @@ import DataPanelResizer from '../MapPageV2/DataPanelResizer';
 import type { ViewMode } from '../MapPageV2/viewMode';
 import {
   VIEW_MODE_STORAGE_KEY, isViewMode,
-  DATA_PANEL_WIDTH_STORAGE_KEY, DATA_PANEL_DEFAULT_WIDTH,
 } from '../MapPageV2/viewMode';
 import ComparePanel, { MAX_COLUMNS } from './ComparePanel';
 import HistoricMapLayers from './HistoricMapLayers';
@@ -27,6 +26,10 @@ import type { ParcelRef } from './historyData';
 import type { CompareMode } from './urlState';
 import { parseState, serializeState } from './urlState';
 import { useMedia } from './useMedia';
+
+const PANEL_WIDTHS_STORAGE_KEY = 'objektwesen.v3.panelWidths';
+/** Default width (px) of the left panel per view mode; capped at 80vw in CSS. */
+const PANEL_DEFAULT_WIDTH: Record<ViewMode, number> = { map: 400, hybrid: 600, data: 600 };
 
 const MAP_CENTER: [number, number] = [47.3925, 8.0442];
 
@@ -99,19 +102,26 @@ export default function MapPageV3() {
   const phone = useMedia('(max-width: 768px)');
   const view: ViewMode = phone ? (viewMode === 'data' ? 'data' : 'map') : viewMode;
 
-  // Data-view panel width: shared with v2 (same storage key), user-resizable.
-  const [dataPanelWidth, setDataPanelWidth] = useState<number>(() => {
+  // Left panel width: user-resizable, remembered per view mode so Karte / Hybrid / Daten stay distinct.
+  const [panelWidths, setPanelWidths] = useState<Record<ViewMode, number>>(() => {
     try {
-      const stored = Number(window.localStorage.getItem(DATA_PANEL_WIDTH_STORAGE_KEY));
-      return stored > 0 ? stored : DATA_PANEL_DEFAULT_WIDTH;
+      const stored = JSON.parse(window.localStorage.getItem(PANEL_WIDTHS_STORAGE_KEY) ?? '{}');
+      const pick = (m: ViewMode) => (Number(stored[m]) > 0 ? Number(stored[m]) : PANEL_DEFAULT_WIDTH[m]);
+      return { map: pick('map'), hybrid: pick('hybrid'), data: pick('data') };
     } catch {
-      return DATA_PANEL_DEFAULT_WIDTH;
+      return { ...PANEL_DEFAULT_WIDTH };
     }
   });
+  const panelWidth = panelWidths[view];
+  const setPanelWidth = (w: number) => setPanelWidths(prev => ({ ...prev, [view]: w }));
   const [resizing, setResizing] = useState(false);
+
+  // Karte view (desktop): the left panel is tucked away until a parcel is picked or the user opens it.
+  const [sidePanelOpen, setSidePanelOpen] = useState(initial.parcels.length > 0);
+  const panelHidden = !phone && view === 'map' && !sidePanelOpen;
   useEffect(() => {
-    try { window.localStorage.setItem(DATA_PANEL_WIDTH_STORAGE_KEY, String(dataPanelWidth)); } catch { /* ignore */ }
-  }, [dataPanelWidth]);
+    try { window.localStorage.setItem(PANEL_WIDTHS_STORAGE_KEY, JSON.stringify(panelWidths)); } catch { /* ignore */ }
+  }, [panelWidths]);
 
   // Search (triggered by typing only, so programmatic query updates never open the dropdown)
   const [query, setQuery] = useState(initial.parcels[0] ? `Grundstück ${initial.parcels[0].grundstueckNummer}` : '');
@@ -148,6 +158,7 @@ export default function MapPageV3() {
 
   // ── Selection logic ──
   const selectParcel = useCallback((info: ObjectInfo, geom: Geometry | null, focus: boolean) => {
+    setSidePanelOpen(true);
     setParcels(prev => {
       if (compare && mode === 'parzellen' && prev.length > 0) {
         if (prev.some(x => x.egrid === info.egrid)) return prev;
@@ -167,7 +178,7 @@ export default function MapPageV3() {
     selectParcel(info, null, true);
   };
 
-  const closePanel = () => { setParcels([]); setGeometry(null); };
+  const closePanel = () => { setParcels([]); setGeometry(null); setSidePanelOpen(false); };
 
   const removeParcel = (egrid: string) => {
     setParcels(prev => {
@@ -248,8 +259,8 @@ export default function MapPageV3() {
 
   return (
     <div
-      className={`mapv3-page mapv3-page--${view}${phone ? ' mapv3-page--phone' : ''}${resizing ? ' mapv3-page--resizing' : ''}`}
-      style={{ '--data-panel-w': `${dataPanelWidth}px` } as React.CSSProperties}
+      className={`mapv3-page mapv3-page--${view}${phone ? ' mapv3-page--phone' : ''}${resizing ? ' mapv3-page--resizing' : ''}${panelHidden ? ' mapv3-page--panel-hidden' : ''}`}
+      style={{ '--data-panel-w': `${panelWidth}px` } as React.CSSProperties}
     >
       <Header extras={<ViewModeSwitcher value={view} onChange={setViewMode} modes={phone ? ['map', 'data'] : undefined} />} />
 
@@ -334,6 +345,17 @@ export default function MapPageV3() {
         </aside>
 
         <div className="mapv3-mapwrap">
+          {!phone && view === 'map' && (
+            <button
+              type="button"
+              className="mapv3-paneltab"
+              aria-label={panelHidden ? 'Seitenpanel einblenden' : 'Seitenpanel ausblenden'}
+              title={panelHidden ? 'Seitenpanel einblenden' : 'Seitenpanel ausblenden'}
+              onClick={() => setSidePanelOpen(o => !o)}
+            >
+              {panelHidden ? <><LuPanelLeftOpen size={17} /> Suche &amp; Daten</> : <LuPanelLeftClose size={17} />}
+            </button>
+          )}
           <MapContainer center={MAP_CENTER} zoom={16} zoomControl={false} className="mapv3-map">
             <TileLayer
               attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
@@ -348,7 +370,7 @@ export default function MapPageV3() {
               opacity={0.7}
               attribution='&copy; <a href="https://geodienste.ch">geodienste.ch</a> – Amtliche Vermessung'
             />
-            <MapResizer trigger={`${view}-${parcels.length > 0}-${dataPanelWidth}`} />
+            <MapResizer trigger={`${view}-${parcels.length > 0}-${panelWidth}-${panelHidden}`} />
             <CustomZoomControl />
             <HistoricMapLayers
               geometry={geometry}
@@ -438,8 +460,8 @@ export default function MapPageV3() {
         </div>
       </div>
 
-      {view === 'data' && !phone && (
-        <DataPanelResizer width={dataPanelWidth} onResize={setDataPanelWidth} onDragChange={setResizing} />
+      {!phone && view !== 'data' && !panelHidden && (
+        <DataPanelResizer width={panelWidth} defaultWidth={PANEL_DEFAULT_WIDTH[view]} onResize={setPanelWidth} onDragChange={setResizing} />
       )}
     </div>
   );

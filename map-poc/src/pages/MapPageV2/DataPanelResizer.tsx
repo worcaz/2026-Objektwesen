@@ -6,8 +6,8 @@ const DATA_PANEL_KEYBOARD_STEP = 24;
 
 /** Drag handle on the right edge of the data-view side panel. */
 export default function DataPanelResizer({
-  width, onResize, onDragChange,
-}: { width: number; onResize: (w: number) => void; onDragChange: (dragging: boolean) => void }) {
+  width, defaultWidth = DATA_PANEL_DEFAULT_WIDTH, onResize, onDragChange,
+}: { width: number; defaultWidth?: number; onResize: (w: number) => void; onDragChange: (dragging: boolean) => void }) {
   const startDrag = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
     const el = e.currentTarget;
@@ -30,12 +30,12 @@ export default function DataPanelResizer({
       className="data-resizer"
       role="separator"
       aria-orientation="vertical"
-      aria-label="Breite des Datenpanels ändern"
+      aria-label="Breite des Panels ändern"
       aria-valuenow={width}
       aria-valuemin={DATA_PANEL_MIN_WIDTH}
       tabIndex={0}
       onPointerDown={startDrag}
-      onDoubleClick={() => onResize(clampDataPanelWidth(DATA_PANEL_DEFAULT_WIDTH))}
+      onDoubleClick={() => onResize(clampDataPanelWidth(defaultWidth))}
       onKeyDown={e => {
         if (e.key === 'ArrowLeft')  { e.preventDefault(); onResize(clampDataPanelWidth(width - DATA_PANEL_KEYBOARD_STEP)); }
         if (e.key === 'ArrowRight') { e.preventDefault(); onResize(clampDataPanelWidth(width + DATA_PANEL_KEYBOARD_STEP)); }
