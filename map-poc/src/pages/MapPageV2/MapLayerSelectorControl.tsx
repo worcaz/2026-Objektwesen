@@ -183,17 +183,16 @@ function MapLayerSelectorControl({
             onToggleLuftbild,
             luftbildOpacity,
             onChangeLuftbildOpacity,
-            <div className="layer-opacity-control" style={{ opacity: showLuftbild ? 1 : 0.45 }}>
-              <div className="layer-opacity-header">
-                <span>Stand (swisstopo)</span>
-              </div>
+            <div className="layer-opacity-header layer-year" style={{ opacity: showLuftbild ? 1 : 0.45 }}>
+              <span>Stand</span>
               <select
                 className="layer-year-select"
+                aria-label="Stand des Luftbilds"
                 value={luftbildYear}
                 disabled={!showLuftbild}
                 onChange={(event) => onChangeLuftbildYear(event.target.value === 'current' ? 'current' : Number(event.target.value))}
               >
-                <option value="current">Aktuell (AG / ZG / ZH / LU)</option>
+                <option value="current">Aktuell</option>
                 {swissimageYears().map((y) => (
                   <option key={y} value={y}>{y}</option>
                 ))}

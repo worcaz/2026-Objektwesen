@@ -1,5 +1,6 @@
 import type { ObjectInfo } from '../MapPageV2/mockData';
 import { buildDummyInfo } from '../MapPageV2/mockData';
+import { SWISSIMAGE_FIRST_YEAR } from '../../lib/swissimage';
 
 // ─── Mock history ─────────────────────────────────────────────────────────────
 // A parcel's history is a deterministic list of events (Handänderung, Neubau, …),
@@ -313,7 +314,8 @@ export function yearsAgoIso(years: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-export const MIN_STICHTAG = `${EARLIEST_YEAR - 5}-01-01`;
+/** Frühester wählbarer Stichtag = erstes SWISSIMAGE-Jahr, unabhängig von den Mock-Ereignissen. */
+export const MIN_STICHTAG = `${SWISSIMAGE_FIRST_YEAR}-01-01`;
 
 /** Events that happened after `from` and up to (including) `to` (ISO dates). */
 export function eventsBetween(history: ParcelHistory, from: string, to: string): HistoryEvent[] {

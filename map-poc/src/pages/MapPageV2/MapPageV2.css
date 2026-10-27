@@ -1362,11 +1362,24 @@
 }
 
 .layer-year-select {
-  width: 100%;
-  margin-top: 4px;
-  padding: 4px 6px;
-  font-size: 13px;
+  appearance: none;
+  min-width: 96px;
+  padding: 3px 24px 3px 8px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  color: #111827;
   border: 1px solid #d1d5db;
   border-radius: 6px;
-  background: #fff;
+  background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' fill='none' stroke='%236b7280' stroke-width='1.5'%3E%3Cpath d='M1 1l4 4 4-4'/%3E%3C/svg%3E") no-repeat right 8px center;
+  cursor: pointer;
+}
+
+.layer-year-select:focus-visible {
+  outline: 2px solid #009fe3;
+  outline-offset: 1px;
+}
+
+.layer-year-select:disabled {
+  cursor: default;
 }

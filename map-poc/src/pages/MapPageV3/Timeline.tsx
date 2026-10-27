@@ -38,11 +38,9 @@ export default function Timeline({ events, dates, baseDate, maxDates, lockToday 
     return k;
   };
 
-  const { tMin, tMax } = useMemo(() => {
-    const earliest = events.length ? events[events.length - 1].date : MIN_STICHTAG;
-    const min = Math.max(toTime(MIN_STICHTAG), toTime(earliest) - 365 * DAY);
-    return { tMin: min, tMax: toTime(TODAY_ISO) };
-  }, [events]);
+  // Fixed axis: always reaches back to MIN_STICHTAG so every aerial year stays selectable.
+  const tMin = toTime(MIN_STICHTAG);
+  const tMax = toTime(TODAY_ISO);
 
   const pct = (iso: string) => Math.min(100, Math.max(0, ((toTime(iso) - tMin) / (tMax - tMin)) * 100));
 
